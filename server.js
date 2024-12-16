@@ -13,7 +13,10 @@ const AboutTeacher = require('./Routes/AboutTeacherRoutes')
 const AvailableCards = require('./Routes/AvailableCardsRoutes')
 const BasmaTrainningRoutes = require('./Routes/BasmaTrainningRoutes')
 const BlogsRoutes = require('./Routes/BlogRoutes')
-
+const BoxSliderRoutes = require('./Routes/BoxSliderRoutes')
+const SliderRoutes = require('./Routes/SliderRoutes')
+const CommentBlogRoutes = require('./Routes/CommentBlogRoutes');
+const CoursesRoutes = require('./Routes/CoursesRoutes')
 
 
 
@@ -26,6 +29,10 @@ app.use('/aboutTeacher',AboutTeacher)
 app.use('/availablecards',AvailableCards)
 app.use('/basmatrainning',BasmaTrainningRoutes)
 app.use('/blog',BlogsRoutes)
+app.use('/boxSlider',BoxSliderRoutes)
+app.use('/Sliders',SliderRoutes)
+app.use('/commentBlogs',CommentBlogRoutes)
+app.use('/Courses',CoursesRoutes)
 
 app.use(express.json());
 

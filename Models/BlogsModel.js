@@ -2,8 +2,8 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../Config/dbConnect');
 const Department = require('../Models/DepartmentModel'); 
 const Tag = require('../Models/TagModel');
+const CommentBlog = require('../Models/CommentBlog')
 
-// تعريف نموذج Blog
 const Blog = sequelize.define('Blog', {
     id: {
         type: DataTypes.INTEGER,
@@ -46,7 +46,7 @@ const Blog = sequelize.define('Blog', {
     tableName: 'blogs'
 });
 
-// علاقة واحد لواحد بين Blog و Department
+
 Blog.belongsTo(Department, {
     foreignKey: 'department_id',
 });
@@ -54,8 +54,14 @@ Department.hasOne(Blog, {
     foreignKey: 'department_id',
 });
 
-// علاقة واحد لواحد بين Blog و Tag
+
 Blog.hasOne(Tag, { foreignKey: 'blog_id' });
 Tag.belongsTo(Blog, { foreignKey: 'blog_id' });
+
+Blog.hasMany(CommentBlog, { foreignKey: "blog_id" });
+CommentBlog.belongsTo(Blog, { foreignKey: "blog_id" });
+
+
+
 
 module.exports = Blog;
