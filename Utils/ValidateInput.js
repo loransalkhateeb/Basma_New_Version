@@ -16,9 +16,13 @@ const validateEmail = (email) => {
     return username && username.length >= 3 && username.length <= 30;
   };
   
-  const ErrorResponse = (message) => {
-    return { error: message };
+  const ErrorResponse = (message, details = []) => {
+    return { 
+      error: message,
+      details: details
+    };
   };
+  
   const validateUserInput = (username, email, password, RepeatPassword) => {
     const errors = [];
   
