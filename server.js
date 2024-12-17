@@ -29,7 +29,10 @@ const TagRoutes = require('./Routes/TagRoutes')
 
 
 const app = express();
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
