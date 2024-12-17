@@ -49,7 +49,7 @@ exports.createAvailableCard = async (req, res) => {
 exports.getAllAvailableCards = async (req, res) => {
   try {
     const availableCards = await AvailableCards.findAll({
-      include: [{ model: Governorate, attributes: ['governorate'] }]
+      include: [{ model: Governorate, as: 'governorate', attributes: ['governorate'] }]
     });
 
     res.status(200).json(availableCards);
