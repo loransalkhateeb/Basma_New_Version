@@ -32,6 +32,10 @@ const sequelize = new Sequelize(
 );
 
 
+
+
+
+
 const testConnection = async () => {
   try {
     const startTime = Date.now(); 
