@@ -15,6 +15,12 @@ const BoxSliderRoutes = require('./Routes/BoxSliderRoutes');
 const SliderRoutes = require('./Routes/SliderRoutes');
 const CommentBlogRoutes = require('./Routes/CommentBlogRoutes');
 const CoursesRoutes = require('./Routes/CoursesRoutes');
+const DepartmentsRoutes = require('./Routes/DepartementsRoutes')
+const DynamicBlogsRoutes = require('./Routes/DynamicBlogRoutes')
+const BoxUnderSliderRoutes = require('./Routes/BoxUnderSliderRoutes')
+const CommentsRoutes = require('./Routes/CommnetsRoutes')
+
+
 
 const app = express();
 app.use(helmet());
@@ -32,6 +38,12 @@ app.use('/boxSlider', BoxSliderRoutes);
 app.use('/Sliders', SliderRoutes);
 app.use('/commentBlogs', CommentBlogRoutes);
 app.use('/Courses', CoursesRoutes);
+app.use('/departments',DepartmentsRoutes)
+app.use('/dynamicBlogs',DynamicBlogsRoutes)
+app.use('/BoxUnderSlider',BoxUnderSliderRoutes)
+app.use('/Comments',CommentsRoutes)
+
+
 
 
 process.on('SIGINT', () => {

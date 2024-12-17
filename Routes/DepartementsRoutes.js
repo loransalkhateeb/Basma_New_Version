@@ -1,16 +1,22 @@
+const express = require('express');
+const router = express.Router();
+const DepartmentController = require('../Controllers/DepartmentController'); 
+const authMiddleWare = require('../MiddleWares/authMiddleware'); 
+const rateLimiter = require('../MiddleWares/rateLimiter');
 
-const DepartmenstController = require('../Controllers/DepartmentController')
-const authMiddleWare = require('../MiddleWares/authMiddleware')
-const rateLimiter = require('../MiddleWares/rateLimiter')
-const router = require('./BlogRoutes')
+
+router.post('/createDepartment', rateLimiter, DepartmentController.createDepartment);
 
 
-router.post('/createDepartment',rateLimiter,DepartmenstController.createDepartment)
+router.get('/getDepartments', rateLimiter, DepartmentController.getDepartments);
 
-router.get('/getDepartments', rateLimiter, DepartmenstController.getAllDepartments)
 
-router.get('/getDepartment/:id', rateLimiter, DepartmenstController.getDepartmentById)
+router.get('/getDepartment/:id', rateLimiter, DepartmentController.getDepartmentById);
 
-router.put('/updateDepartment/:id', rateLimiter, DepartmenstController.updateDepartment)
 
-router.delete('/deleteDepartment/:id', rateLimiter, DepartmenstController.deleteDepartment)
+router.put('/updateDepartment/:id', rateLimiter, DepartmentController.updateDepartment);
+
+
+router.delete('/deleteDepartment/:id', rateLimiter, DepartmentController.deleteDepartment);
+
+module.exports = router;
