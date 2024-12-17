@@ -6,6 +6,7 @@ const cloudinary = require('../Config/CloudinaryConfig');
 
 
 exports.createLibrary = async (req, res) => {
+
     try {
         const { book_name, author, page_num, department_id } = req.body;
        
@@ -66,6 +67,54 @@ exports.getByFile = async (req, res) => {
         });
 
         console.log('Cloudinary resources:', result);
+
+  try {
+      const { book_name, author, page_num, department_id } = req.body;
+     
+      if (!book_name || !author || !page_num || !department_id || !req.file) {
+          return res.status(400).json(
+              ErrorResponse("Validation failed", [
+                  "All fields (book_name, author, page_num, department_id) are required",
+              ])
+          );
+      }
+      const file_book = req.file.filename;
+
+      if (!req.file) {
+          return res.status(400).json(
+              ErrorResponse("Validation failed", ["File upload is required"])
+          );
+      }
+   
+      console.log("Uploaded file details:", req.file);
+      
+
+     
+      const newLibrary = await Library.create({
+          book_name,
+          author,
+          page_num,
+          file_book,
+          department_id,
+      });
+
+      
+      return res.status(201).json({
+          message: 'The Create Library is Successfully',
+          library: newLibrary,
+      });
+  } catch (error) {
+      console.error("Error while creating Library entry:", error);
+      return res.status(500).json(
+          ErrorResponse("Failed to create Library entry", [
+              error.message || "An unexpected error occurred.",
+          ])
+      );
+  }
+};
+  
+  
+
 
        
         const file = result.resources.find(resource => resource.public_id === fileName);

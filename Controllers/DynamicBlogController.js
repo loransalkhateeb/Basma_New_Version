@@ -35,7 +35,7 @@ exports.addDynamicBlog = async (req, res) => {
 
 exports.getDynamicBlogs = async (req, res) => {
   try {
-   
+    await client.del("dynamicblog:all");
     const data = await client.get("dynamicblog:all");
 
     if (data) {

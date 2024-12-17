@@ -33,6 +33,7 @@ app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cors())
 
 
 app.use('/abouts', AboutRoutes);
@@ -40,7 +41,7 @@ app.use('/aboutTeacher', AboutTeacher);
 app.use('/availablecards', AvailableCards);
 app.use('/basmatrainning', BasmaTrainningRoutes);
 app.use('/blog', BlogsRoutes);
-app.use('/boxSlider', BoxSliderRoutes);
+app.use('/boxSlider', BoxUnderSliderRoutes);
 app.use('/Sliders', SliderRoutes);
 app.use('/commentBlogs', CommentBlogRoutes);
 app.use('/Courses', CoursesRoutes);
@@ -76,6 +77,6 @@ app.get("/", (req, res) => {
 });
 
 
-app.listen(process.env.PORT || 6000, () => {
-  console.log(`Server is running on port ${process.env.PORT || 6000}`);
+app.listen(process.env.PORT || 6060, () => {
+  console.log(`Server is running on port ${process.env.PORT || 6060}`);
 });

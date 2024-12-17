@@ -45,7 +45,7 @@ exports.getBasmaTrainingById = async (req, res) => {
       return res.status(404).json(new ErrorResponse('BasmaTraining not found', ['No BasmaTraining found with the given ID']));
     }
 
-    res.status(200).json(basmaTraining);
+    res.status(200).json([basmaTraining]);
   } catch (error) {
     console.error(error);
     res.status(500).json(new ErrorResponse('Failed to retrieve BasmaTraining', ['An error occurred while retrieving the BasmaTraining.']));
