@@ -1,7 +1,6 @@
-const nodemailer = require('nodemailer');
-const { validateInput, ErrorResponse } = require('../Utils/validateInput');
-const Department = require('../Models/DepartmentModel');
-
+const Department = require("../Models/DepartmentModel");
+const { client } = require('../Utils/redisClient');
+const { validateInput, ErrorResponse } = require("../Utils/validateInput");
 
 exports.createDepartment = async (req, res) => {
   try {
@@ -10,110 +9,98 @@ exports.createDepartment = async (req, res) => {
     if (!title || !price) {
       return res
         .status(400)
-        .json(
-          ErrorResponse("Validation failed", [
-            "The All Fields are required. Please fill all fields."
-          ])
-        );
+        .json(ErrorResponse("Validation failed", ["Title and price are required"]));
     }
 
-   
     const validationErrors = validateInput({ title, price });
     if (validationErrors.length > 0) {
-      return res
-        .status(400)
-        .json(ErrorResponse("Validation failed", validationErrors));
+      return res.status(400).json(new ErrorResponse("Validation failed", validationErrors));
     }
 
-   
-    const newDepartment = await Department.create({
-      title,
-      price
-    });
+    const newDepartment = await Department.create({ title, price });
 
     
-    sendEmailNotification('New Department Created', `A new department titled "${title}" has been created.`);
+    await client.set(`department:${newDepartment.id}`, JSON.stringify(newDepartment), { EX: 3600 });
 
-    
     res.status(201).json({
       message: "Department created successfully",
-      department: newDepartment
+      department: newDepartment,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json(
-        ErrorResponse("Failed to create department, please try again", [
-          "An error occurred while creating the new department. Please try again later."
-        ])
-      );
+    res.status(500).json(ErrorResponse("Failed to create department", ["An error occurred while creating the department"]));
   }
 };
 
-
-exports.getAllDepartments = async (req, res) => {
+exports.getDepartments = async (req, res) => {
   try {
-    const departments = await Department.findAll();
-    res.status(200).json(departments);
+    await client.del("department:all");
+  
+    const data = await client.get("department:all");
+
+    if (data) {
+      return res.status(200).json(JSON.parse(data)); 
+    } else {
+      const departments = await Department.findAll({
+        attributes: ['id', 'title', 'price'],
+        order: [['id', 'DESC']], 
+      });
+
+    
+      await client.setEx("department:all", 3600, JSON.stringify(departments));
+
+      res.status(200).json(departments);
+    }
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to fetch departments", [
-        "An error occurred while fetching the departments."
-      ])
-    );
+    res.status(500).json(ErrorResponse("Failed to fetch departments", ["An error occurred while fetching the departments"]));
   }
 };
-
 
 exports.getDepartmentById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const department = await Department.findByPk(id);
-    if (!department) {
-      return res.status(404).json(
-        ErrorResponse("Department not found", [
-          `No department found with the given ID: ${id}`
-        ])
-      );
-    }
+   
+    const data = await client.get(`department:${id}`);
 
-    res.status(200).json(department);
+    if (data) {
+      return res.status(200).json(JSON.parse(data)); 
+    } else {
+      const department = await Department.findOne({
+        attributes: ['id', 'title', 'price'],
+        where: { id },
+      });
+
+      if (!department) {
+        return res.status(404).json(new ErrorResponse("Department not found", ["No department found with the given id"]));
+      }
+
+      
+      await client.set(`department:${id}`, JSON.stringify(department), { EX: 3600 });
+
+      res.status(200).json(department);
+    }
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to fetch department", [
-        "An error occurred while fetching the department."
-      ])
-    );
+    res.status(500).json(new ErrorResponse("Failed to fetch department", ["An error occurred while fetching the department"]));
   }
 };
-
 
 exports.updateDepartment = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, price } = req.body;
 
-    if (!title || !price) {
-      return res
-        .status(400)
-        .json(
-          ErrorResponse("Validation failed", [
-            "The All Fields are required. Please fill all fields."
-          ])
-        );
+    const validationErrors = validateInput({ title, price });
+    if (validationErrors.length > 0) {
+      return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
     }
 
     const department = await Department.findByPk(id);
+
     if (!department) {
-      return res.status(404).json(
-        ErrorResponse("Department not found", [
-          `No department found with the given ID: ${id}`
-        ])
-      );
+      return res.status(404).json(ErrorResponse("Department not found", ["No department found with the given id"]));
     }
 
     department.title = title || department.title;
@@ -121,45 +108,37 @@ exports.updateDepartment = async (req, res) => {
 
     await department.save();
 
+  
+    await client.setEx(`department:${id}`, 3600, JSON.stringify(department));
+
     res.status(200).json({
       message: "Department updated successfully",
-      department
+      department,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to update department", [
-        "An error occurred while updating the department."
-      ])
-    );
+    res.status(500).json(new ErrorResponse("Failed to update department", ["An error occurred while updating the department"]));
   }
 };
-
 
 exports.deleteDepartment = async (req, res) => {
   try {
     const { id } = req.params;
 
     const department = await Department.findByPk(id);
+
     if (!department) {
-      return res.status(404).json(
-        ErrorResponse("Department not found", [
-          `No department found with the given ID: ${id}`
-        ])
-      );
+      return res.status(404).json(new ErrorResponse("Department not found", ["No department found with the given id"]));
     }
 
     await department.destroy();
 
-    res.status(200).json({
-      message: "Department deleted successfully"
-    });
+   
+    await client.del(`department:${id}`);
+
+    res.status(200).json({ message: "Department deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to delete department", [
-        "An error occurred while deleting the department."
-      ])
-    );
+    res.status(500).json(ErrorResponse("Failed to delete department", ["An error occurred while deleting the department"]));
   }
 };
