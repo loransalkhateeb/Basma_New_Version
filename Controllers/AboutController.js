@@ -86,7 +86,7 @@ exports.getAboutById = async (req, res) => {
       });
 
       if (!aboutEntry) {
-        return res.status(404).json(new ErrorResponse("About entry not found", ["No About entry found with the given id"]));
+        return res.status(404).json( ErrorResponse("About entry not found", ["No About entry found with the given id"]));
       }
 
     
@@ -99,7 +99,7 @@ exports.getAboutById = async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json(new ErrorResponse("Failed to fetch About entry", ["An error occurred while fetching the entry"]));
+    res.status(500).json( ErrorResponse("Failed to fetch About entry", ["An error occurred while fetching the entry"]));
   }
 };
 
