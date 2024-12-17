@@ -19,6 +19,8 @@ const DepartmentsRoutes = require('./Routes/DepartementsRoutes')
 const DynamicBlogsRoutes = require('./Routes/DynamicBlogRoutes')
 const BoxUnderSliderRoutes = require('./Routes/BoxUnderSliderRoutes')
 const CommentsRoutes = require('./Routes/CommnetsRoutes')
+const FAQRoutes = require('./Routes/FaqRoutes')
+const LibarryRoutes = require('./Routes/LibraryRoutes')
 
 
 
@@ -42,8 +44,8 @@ app.use('/departments',DepartmentsRoutes)
 app.use('/dynamicBlogs',DynamicBlogsRoutes)
 app.use('/BoxUnderSlider',BoxUnderSliderRoutes)
 app.use('/Comments',CommentsRoutes)
-
-
+app.use('/Fqs',FAQRoutes)
+app.use('/Libraries',LibarryRoutes)
 
 
 process.on('SIGINT', () => {

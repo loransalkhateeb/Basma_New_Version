@@ -12,8 +12,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-
-
 const { client } = require('../Utils/redisClient');
 
 
@@ -66,6 +64,7 @@ exports.addComment = async (req, res) => {
 
 exports.getComments = async (req, res) => {
   try {
+    await client.del("comments:all");
     const data = await client.get("comments:all");
 
     if (data) {
@@ -119,36 +118,55 @@ exports.getCommentById = async (req, res) => {
 
 
 exports.updateComment = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { action } = req.body;
+    try {
+      const { id } = req.params;
+      const { action } = req.body;
+  
+      if (!action) {
+        return res.status(400).json(ErrorResponse("Validation failed", ["Action is required"]));
+      }
+  
+      const comment = await Comment.findByPk(id);
+  
+      if (!comment) {
+        return res.status(404).json(ErrorResponse("Comment not found", ["No comment found with the given id"]));
+      }
+  
+      comment.action = action;
+  
+      await comment.save();
+  
 
-    if (!action) {
-      return res.status(400).json(ErrorResponse("Validation failed", ["Action is required"]));
-    }
-
-    const comment = await Comment.findByPk(id);
-
-    if (!comment) {
-      return res.status(404).json(ErrorResponse("Comment not found", ["No comment found with the given id"]));
-    }
-
-    comment.action = action;
-
-    await comment.save();
-
+      await client.setEx(`comment:${id}`, 3600, JSON.stringify(comment));
+  
+   
+      const mailOptions = {
+        from: process.env.EMAIL_USER,  
+        to: 'admin@example.com',      
+        subject: 'Comment Updated',
+        text: `The comment from ${comment.name} (${comment.email}) has been updated.\n\nUpdated Action: ${action}\nComment: ${comment.comment}`,
+      };
+  
+     
+      transporter.sendMail(mailOptions, (error, info) => {
+        if (error) {
+          console.error("Error sending email:", error);
+        } else {
+          console.log("Email sent: " + info.response);
+        }
+      });
+  
     
-    await client.setEx(`comment:${id}`, 3600, JSON.stringify(comment));
-
-    res.status(200).json({
-      message: "Comment updated successfully",
-      comment,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json(new ErrorResponse("Failed to update Comment", ["An error occurred while updating the comment"]));
-  }
-};
+      res.status(200).json({
+        message: "Comment updated successfully",
+        comment,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json(new ErrorResponse("Failed to update Comment", ["An error occurred while updating the comment"]));
+    }
+  };
+  
 
 
 exports.deleteComment = async (req, res) => {
