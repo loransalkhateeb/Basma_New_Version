@@ -21,6 +21,10 @@ const BoxUnderSliderRoutes = require('./Routes/BoxUnderSliderRoutes')
 const CommentsRoutes = require('./Routes/CommnetsRoutes')
 const FAQRoutes = require('./Routes/FaqRoutes')
 const LibarryRoutes = require('./Routes/LibraryRoutes')
+const WhoWeAreRoutes = require('./Routes/WhoWeAresRoutes')
+const TagRoutes = require('./Routes/TagRoutes')
+
+
 
 
 
@@ -46,6 +50,12 @@ app.use('/BoxUnderSlider',BoxUnderSliderRoutes)
 app.use('/Comments',CommentsRoutes)
 app.use('/Fqs',FAQRoutes)
 app.use('/Libraries',LibarryRoutes)
+app.use('/WhoWeAre',WhoWeAreRoutes)
+app.use('/Tags',TagRoutes)
+
+
+
+
 
 
 process.on('SIGINT', () => {

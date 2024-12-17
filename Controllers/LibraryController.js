@@ -1,22 +1,22 @@
 const Library = require("../Models/LibraryModel");
 const { client } = require('../Utils/redisClient'); 
 const { validateInput, ErrorResponse } = require("../Utils/validateInput");
-
+const cloudinary = require('../Config/CloudinaryConfig');  
 
 
 
 exports.createLibrary = async (req, res) => {
     try {
         const { book_name, author, page_num, department_id } = req.body;
-
        
-        if (!book_name || !author || !page_num || !department_id) {
+        if (!book_name || !author || !page_num || !department_id || !req.file) {
             return res.status(400).json(
                 ErrorResponse("Validation failed", [
                     "All fields (book_name, author, page_num, department_id) are required",
                 ])
             );
         }
+        const file_book = req.file.filename;
 
         if (!req.file) {
             return res.status(400).json(
@@ -26,14 +26,13 @@ exports.createLibrary = async (req, res) => {
      
         console.log("Uploaded file details:", req.file);
         
-        const file_url = req.file.path; 
 
        
         const newLibrary = await Library.create({
             book_name,
             author,
             page_num,
-            file_book: file_url,
+            file_book,
             department_id,
         });
 
@@ -54,7 +53,41 @@ exports.createLibrary = async (req, res) => {
   
   
   
+exports.getByFile = async (req, res) => {
+    const fileName = req.params.filename;
 
+    console.log('Received filename:', fileName);
+
+    try {
+      
+        const result = await cloudinary.api.resources({
+            type: 'upload',
+            prefix: '', 
+        });
+
+        console.log('Cloudinary resources:', result);
+
+       
+        const file = result.resources.find(resource => resource.public_id === fileName);
+
+        if (!file) {
+            console.log('File not found in Cloudinary');
+            return res.status(404).json({ message: 'File not found' });
+        }
+
+        console.log('Found file:', file);
+
+        
+        res.setHeader('Content-Type', 'application/pdf');
+        
+        
+        res.redirect(file.secure_url); 
+
+    } catch (error) {
+        console.error('Error fetching file from Cloudinary:', error);
+        res.status(500).json({ message: 'Failed to retrieve file from Cloudinary' });
+    }
+};
 
 exports.getLibrary = async (req, res) => {
   try {
