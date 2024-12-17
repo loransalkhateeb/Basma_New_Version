@@ -21,6 +21,7 @@ app.use(helmet());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cors())
 
 
 app.use('/abouts', AboutRoutes);
@@ -52,6 +53,6 @@ app.get("/", (req, res) => {
 });
 
 
-app.listen(process.env.PORT || 6000, () => {
-  console.log(`Server is running on port ${process.env.PORT || 6000}`);
+app.listen(process.env.PORT || 6060, () => {
+  console.log(`Server is running on port ${process.env.PORT || 6060}`);
 });
