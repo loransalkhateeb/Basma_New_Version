@@ -34,6 +34,7 @@ exports.addWhoweare = async (req, res) => {
 
 exports.getWhoweare = async (req, res) => {
   try {
+    await client.del("whoweare:all");
     const data = await client.get("whoweare:all");
 
     if (data) {

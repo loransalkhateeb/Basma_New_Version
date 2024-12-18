@@ -186,6 +186,29 @@ exports.deleteGovernorate = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json(new ErrorResponse('Failed to delete governorate', ['An error occurred while deleting the governorate']));
+    return res.status(404).json(new ErrorResponse('Governorate not found', ['No governorate found with the given ID']));
+  }
+};
+
+exports.getAvailableCardBygovermentId = async (req, res) => {
+  try {
+    const { governorate_id } = req.params;
+
+    const card = await Governorate.findByPk(governorate_id, {
+      include: [{
+        model: AvailableCards,
+        as: 'availableCards',
+        attributes: ['name', 'location', 'mapslink', 'address', 'phone'],
+      }]
+    });
+
+    if (!card) {
+      return res.status(404).json(new ErrorResponse('Card not found', ['No card found with the given governorate_id']));
+    }
+
+    res.status(200).json(card);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json(new ErrorResponse('Failed to retrieve available card', ['An error occurred while retrieving the card']));
   }
 };

@@ -14,6 +14,7 @@ router.get('/All-blogs', rateLimiter, BlogController.getAllBlogs);
 
 
 router.get('/getBlogById/:id', rateLimiter, BlogController.getBlogById);
+router.get('/lastthree', rateLimiter, BlogController.getLastThreeBlogs);
 
 
 router.put('/update-blog/:id', rateLimiter,multer.single('img'), BlogController.updateBlog);

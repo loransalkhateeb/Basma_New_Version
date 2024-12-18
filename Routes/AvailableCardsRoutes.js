@@ -11,5 +11,9 @@ router.get('/available-cards/:id', AvailableCardsController.getAvailableCardById
 router.put('/available-cards/:id', AvailableCardsController.updateAvailableCard); 
 router.delete('/available-cards/:id', AvailableCardsController.deleteAvailableCard);
 
+router.get('/', AvailableCardsController.getAllGovernorates);
+router.get('/available-cardsbygovermentId/:governorate_id', AvailableCardsController.getAvailableCardBygovermentId); 
+router.post('/add', AvailableCardsController.createGovernorate); 
+router.delete('/delete/:id', AvailableCardsController.deleteGovernorate);
 
 module.exports = router;

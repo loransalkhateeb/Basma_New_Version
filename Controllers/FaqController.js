@@ -35,6 +35,7 @@ exports.addFaq = async (req, res) => {
 
 exports.getFaq = async (req, res) => {
   try {
+    await client.del("faq:all");
     const data = await client.get("faq:all");
 
     if (data) {

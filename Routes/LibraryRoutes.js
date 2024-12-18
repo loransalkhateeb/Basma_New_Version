@@ -16,6 +16,7 @@ router.get('/getLibraries', rateLimiter, libraryController.getLibrary);
 router.get('/getLibrary/:id', rateLimiter, libraryController.getLibraryById);
 
 router.get('/getFile/:filename',rateLimiter,libraryController.getByFile)
+router.get('/getbydep/:id',rateLimiter,libraryController.getByDepartment)
 
 router.put('/updateLibrary/:id', rateLimiter, libraryController.updateLibrary);
 
