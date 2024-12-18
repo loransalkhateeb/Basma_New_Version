@@ -1,15 +1,18 @@
 const Library = require("../Models/LibraryModel");
-const { client } = require('../Utils/redisClient'); 
+const { client } = require("../Utils/redisClient");
 const { validateInput, ErrorResponse } = require("../Utils/validateInput");
-const cloudinary = require('../Config/CloudinaryConfig');  
-
+const cloudinary = require("../Config/CloudinaryConfig");
+const asyncHandler = require("../MiddleWares/asyncHandler");
+const Department = require("../Models/DepartmentModel");
+const { Sequelize } = require("sequelize");
+const path = require("path");
 
 
 exports.createLibrary = async (req, res) => {
 
     try {
         const { book_name, author, page_num, department_id } = req.body;
-       
+
         if (!book_name || !author || !page_num || !department_id || !req.file) {
             return res.status(400).json(
                 ErrorResponse("Validation failed", [
@@ -24,11 +27,9 @@ exports.createLibrary = async (req, res) => {
                 ErrorResponse("Validation failed", ["File upload is required"])
             );
         }
-     
-        console.log("Uploaded file details:", req.file);
-        
 
-       
+        console.log("Uploaded file details:", req.file);
+
         const newLibrary = await Library.create({
             book_name,
             author,
@@ -37,7 +38,6 @@ exports.createLibrary = async (req, res) => {
             department_id,
         });
 
-        
         return res.status(201).json({
             message: 'The Create Library is Successfully',
             library: newLibrary,
@@ -51,6 +51,7 @@ exports.createLibrary = async (req, res) => {
         );
     }
 };
+
   
   
   
@@ -105,6 +106,56 @@ exports.getByFile = async (req, res) => {
 };
 
 
+
+exports.getByFile = async (req, res) => {
+  try {
+    const fileName = req.params.filename; // e.g., 'rpi8u7mvdzfkwqbao7fi'
+
+    if (!fileName) {
+      return res.status(400).json({ message: "File name is required" });
+    }
+
+    // Construct the public_id dynamically (assuming no file extension is stored)
+    const publicId = `Basma_Academy/${fileName}`;
+
+    // Fetch resource details from Cloudinary (optional, for validation or metadata)
+    const resource = await cloudinary.api.resource(publicId);
+
+    // Construct the URL for the file
+    const fileUrl = cloudinary.url(publicId);
+
+    // Option 1: Send file URL to the client
+    res.status(200).json({ url: fileUrl });
+
+    // Option 2: Redirect client to download the file immediately
+    // res.redirect(fileUrl);
+  } catch (error) {
+    console.error("Error fetching file from Cloudinary:", error);
+    if (error.http_code === 404) {
+      return res.status(404).json({ message: "File not found on Cloudinary" });
+    }
+    res.status(500).json({ message: "Internal server error" });
+  }
+  // try {
+  //     const result = await cloudinary.api.resources({
+  //         type: 'upload',
+  //         prefix: '',
+  //     });
+
+  //     const file = result.resources.find(resource => resource.public_id === fileName);
+
+  //     if (!file) {
+  //         return res.status(404).json({ message: 'File not found' });
+  //     }
+
+  //     res.redirect(file.secure_url);
+  // } catch (error) {
+  //     console.error('Error fetching file from Cloudinary:', error);
+  //     res.status(500).json({ message: 'Failed to retrieve file from Cloudinary' });
+  // }
+};
+
+
 exports.getLibrary = async (req, res) => {
   try {
     await client.del("library:all");
@@ -112,11 +163,19 @@ exports.getLibrary = async (req, res) => {
     const data = await client.get("library:all");
 
     if (data) {
-      return res.status(200).json(JSON.parse(data)); 
+      return res.status(200).json(JSON.parse(data));
     } else {
       const libraryEntries = await Library.findAll({
-        attributes: ['id', 'book_name', 'author', 'page_num', 'file_book', 'department_id'],
-        order: [['id', 'DESC']],
+        attributes: [
+          "id",
+          "book_name",
+          "author",
+          "page_num",
+          "file_book",
+          "department_id",
+          "createdAt",
+        ],
+        order: [["id", "DESC"]],
       });
 
       await client.setEx("library:all", 3600, JSON.stringify(libraryEntries));
@@ -125,7 +184,13 @@ exports.getLibrary = async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json(ErrorResponse("Failed to fetch library entries", ["An error occurred while fetching the entries"]));
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to fetch library entries", [
+          "An error occurred while fetching the entries",
+        ])
+      );
   }
 };
 
@@ -139,12 +204,25 @@ exports.getLibraryById = async (req, res) => {
       return res.status(200).json(JSON.parse(data));
     } else {
       const libraryEntry = await Library.findOne({
-        attributes: ['id', 'book_name', 'author', 'page_num', 'file_book', 'department_id'],
+        attributes: [
+          "id",
+          "book_name",
+          "author",
+          "page_num",
+          "file_book",
+          "department_id",
+        ],
         where: { id },
       });
 
       if (!libraryEntry) {
-        return res.status(404).json(new ErrorResponse("Library entry not found", ["No library entry found with the given id"]));
+        return res
+          .status(404)
+          .json(
+            new ErrorResponse("Library entry not found", [
+              "No library entry found with the given id",
+            ])
+          );
       }
 
       await client.set(`library:${id}`, JSON.stringify(libraryEntry), {
@@ -155,26 +233,99 @@ exports.getLibraryById = async (req, res) => {
     }
   } catch (error) {
     console.error(error);
-    res.status(500).json(new ErrorResponse("Failed to fetch library entry", ["An error occurred while fetching the entry"]));
+    res
+      .status(500)
+      .json(
+        new ErrorResponse("Failed to fetch library entry", [
+          "An error occurred while fetching the entry",
+        ])
+      );
   }
 };
+exports.getByDepartment = asyncHandler(async (req, res) => {
+  try {
+    const departmentId = req.params.id; 
 
+   
+    const libraries = await Library.findAll({
+      where: { department_id: departmentId },
+      include: [
+        {
+          model: Department,
+          as: "department",
+          attributes: ["title"], 
+        },
+      ],
+      attributes: [
+        "id",
+        "book_name",
+        "author",
+        "page_num",
+        "file_book",
+        "department_id",
+        [
+          Sequelize.fn("DATE_FORMAT", Sequelize.col("createdAt"), "%Y-%m-%d"),
+          "createdAt",
+        ],
+        "department_id",
+        [
+          Sequelize.fn("DATE_FORMAT", Sequelize.col("createdAt"), "%Y-%m-%d"),
+          "createdAt",
+        ],
+      ],
+    });
+
+    if (!libraries.length) {
+      return res
+        .status(404)
+        .json({ message: "No libraries found for the given department" });
+    }
+
+    res.status(200).json(libraries);
+  } catch (error) {
+    console.error(error);
+    res
+      .status(500)
+      .json({ message: "An error occurred while fetching libraries" });
+  }
+});
 exports.updateLibrary = async (req, res) => {
   try {
     const { id } = req.params;
     const { book_name, author, page_num, file_book, department_id } = req.body;
 
-    const validationErrors = validateInput({ book_name, author, page_num, file_book, department_id });
+    const validationErrors = validateInput({
+      book_name,
+      author,
+      page_num,
+      file_book,
+      department_id,
+    });
     if (validationErrors.length > 0) {
-      return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
+      return res
+        .status(400)
+        .json(ErrorResponse("Validation failed", validationErrors));
     }
 
     const libraryEntry = await Library.findByPk(id, {
-      attributes: ['id', 'book_name', 'author', 'page_num', 'file_book', 'department_id'],
+      attributes: [
+        "id",
+        "book_name",
+        "author",
+        "page_num",
+        "file_book",
+        "department_id",
+      ],
     });
 
     if (!libraryEntry) {
-      return res.status(404).json(ErrorResponse("Library entry not found", ["No library entry found with the given id"]));
+      return res
+        .status(404)
+        .json(
+          ErrorResponse("Library entry not found", [
+            "No library entry found with the given id",
+          ])
+        );
     }
 
     libraryEntry.book_name = book_name || libraryEntry.book_name;
@@ -193,7 +344,13 @@ exports.updateLibrary = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json(new ErrorResponse("Failed to update library entry", ["An error occurred while updating the entry"]));
+    res
+      .status(500)
+      .json(
+        new ErrorResponse("Failed to update library entry", [
+          "An error occurred while updating the entry",
+        ])
+      );
   }
 };
 
@@ -202,11 +359,24 @@ exports.deleteLibrary = async (req, res) => {
     const { id } = req.params;
 
     const libraryEntry = await Library.findByPk(id, {
-      attributes: ['id', 'book_name', 'author', 'page_num', 'file_book', 'department_id'],
+      attributes: [
+        "id",
+        "book_name",
+        "author",
+        "page_num",
+        "file_book",
+        "department_id",
+      ],
     });
 
     if (!libraryEntry) {
-      return res.status(404).json(new ErrorResponse("Library entry not found", ["No library entry found with the given id"]));
+      return res
+        .status(404)
+        .json(
+          new ErrorResponse("Library entry not found", [
+            "No library entry found with the given id",
+          ])
+        );
     }
 
     await libraryEntry.destroy();
@@ -216,6 +386,12 @@ exports.deleteLibrary = async (req, res) => {
     res.status(200).json({ message: "Library entry deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json(ErrorResponse("Failed to delete library entry", ["An error occurred while deleting the entry"]));
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to delete library entry", [
+          "An error occurred while deleting the entry",
+        ])
+      );
   }
 };

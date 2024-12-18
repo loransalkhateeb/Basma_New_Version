@@ -1,2 +1,7 @@
 .env
 node_modules/
+# Ignore ffmpeg binaries
+ffmpeg/bin/ffmpeg-6.1-win-64/ffmpeg.exe
+ffmpeg/bin/ffprobe-6.1-win-64/ffprobe.exe
+ffmpeg/bin/ffmpeg-6.1-win-64/ffmpeg.exe
+ffmpeg/bin/ffprobe-6.1-win-64/ffprobe.exe

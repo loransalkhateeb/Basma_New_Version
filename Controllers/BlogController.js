@@ -197,3 +197,16 @@ exports.deleteBlog = asyncHandler(async (req, res) => {
     message: "Blog and associated tags deleted successfully",
   });
 });
+ exports.getLastThreeBlogs=asyncHandler(async (req, res) => {
+  try {
+    const blogs = await Blog.findAll({
+      order: [['createdAt', 'DESC']], 
+      limit: 3, 
+    });
+
+    res.status(200).json(blogs);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: error.message });
+  }
+ })

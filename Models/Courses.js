@@ -76,9 +76,9 @@ const courses = sequelize.define('courses', {
     },
     total_video_duration:{
         type: DataTypes.STRING,
-        allowNull: false,
+        allowNull: true,
         validate: {
-            notEmpty: true,
+            // notEmpty: true,
             len: [1, 255]
         }
     },

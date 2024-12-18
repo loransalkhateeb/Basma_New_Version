@@ -30,7 +30,7 @@ const Library = sequelize.define('Library', {
     allowNull: false
   },
 }, {
-  timestamps: false,
+  timestamps: true,
   tableName: 'library'
 });
 

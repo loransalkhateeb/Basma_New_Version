@@ -23,15 +23,26 @@ const FAQRoutes = require('./Routes/FaqRoutes')
 const LibarryRoutes = require('./Routes/LibraryRoutes')
 const WhoWeAreRoutes = require('./Routes/WhoWeAresRoutes')
 const TagRoutes = require('./Routes/TagRoutes')
+
 const CouponsRoutes = require('./Routes/coponsRoutes')
 const TeacherRoutes = require('./Routes/TeacherRoutes')
 const UsersRoutes = require('./Routes/UserRouter')
 // const PaymentdepartmnetRouter = require('./Routes/Payment-departmnetRouter')
 // const PaymentCourseRouter = require('./Routes/Payment-CourseRouter')
 
+const PurchaseStepsRoutes = require('./Routes/PurchaseStepsRoutes')
+const ContactRoutes = require('./Routes/ContactRoutes')
+
+
+
+
+
 
 const app = express();
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
@@ -55,11 +66,16 @@ app.use('/Fqs',FAQRoutes)
 app.use('/Libraries',LibarryRoutes)
 app.use('/WhoWeAre',WhoWeAreRoutes)
 app.use('/Tags',TagRoutes)
+
 app.use('/TeacherRoutes',TeacherRoutes)
 app.use('/users',UsersRoutes)
 // app.use('/PaymentsDepartments',PaymentdepartmnetRouter)
 // app.use('/PaymentsCourse',PaymentCourseRouter)
 app.use('/Coupons',CouponsRoutes)
+
+
+app.use('/purchasesteps',PurchaseStepsRoutes)
+app.use('/contactdynamic',ContactRoutes)
 
 
 
