@@ -72,7 +72,8 @@ exports.getTagById = async (req, res) => {
   
   exports.getUniqueTags = async (req, res) => {
     try {
-      
+      await client.del("tag:unique");
+
       const data = await client.get("tag:unique");
       if (data) {
         return res.status(200).json(JSON.parse(data)); 
@@ -106,7 +107,7 @@ exports.getTagById = async (req, res) => {
       } else {
         
         const blogs = await Blog.findAll({
-          attributes: ['id', 'title', 'author', 'descr', 'img', 'created_at'],
+          attributes: ['id', 'title', 'author', 'descr', 'img', 'createdAt'],
           include: {
             model: Tag, 
             where: { tag_name },

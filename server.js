@@ -23,6 +23,8 @@ const FAQRoutes = require('./Routes/FaqRoutes')
 const LibarryRoutes = require('./Routes/LibraryRoutes')
 const WhoWeAreRoutes = require('./Routes/WhoWeAresRoutes')
 const TagRoutes = require('./Routes/TagRoutes')
+const PurchaseStepsRoutes = require('./Routes/PurchaseStepsRoutes')
+const ContactRoutes = require('./Routes/ContactRoutes')
 
 
 
@@ -56,6 +58,8 @@ app.use('/Fqs',FAQRoutes)
 app.use('/Libraries',LibarryRoutes)
 app.use('/WhoWeAre',WhoWeAreRoutes)
 app.use('/Tags',TagRoutes)
+app.use('/purchasesteps',PurchaseStepsRoutes)
+app.use('/contactdynamic',ContactRoutes)
 
 
 

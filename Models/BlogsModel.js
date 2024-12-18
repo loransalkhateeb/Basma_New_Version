@@ -42,7 +42,7 @@ const Blog = sequelize.define('Blog', {
         defaultValue: 'not approved'
     }
 }, {
-    timestamps: false,
+    timestamps: true,
     tableName: 'blogs'
 });
 
