@@ -5,61 +5,67 @@ const transporter = require("../Config/Mailer.js");
 const dotenv=require('dotenv')
 const asyncHandler = require('../MiddleWares/asyncHandler.js')
 const { client } = require('../Utils/redisClient');
+
 const { ErrorResponse, validateInput } = require("../Utils/validateInput");
 
-
+const speakeasy = require('speakeasy');
 
 dotenv.config();
+const qr = require('qrcode');
 
 
 
 
 exports.register = asyncHandler(async (req, res) => {
-    const { name, email, password, confirmPassword, role } = req.body;
-    const img = req.file ? req.file.path : 'acc_icon.png';
-  
-    
-    const validationErrors = validateInput({ name, email, password, confirmPassword, role });
-    if (validationErrors.length > 0) {
-      return res.status(400).json({ errors: validationErrors });
-    }
-  
-    
-    if (password !== confirmPassword) {
-      return res.status(400).json({ message: 'Passwords do not match' });
-    }
-  
-    try {
-      
+  const { name, email, password, confirmPassword, role } = req.body;
+  const img = req.file ? req.file.path : 'acc_icon.png';
+
+  const validationErrors = validateInput({ name, email, password, confirmPassword, role });
+  if (validationErrors.length > 0) {
+    return res.status(400).json({ errors: validationErrors });
+  }
+
+  if (password !== confirmPassword) {
+    return res.status(400).json({ message: 'Passwords do not match' });
+  }
+
+  try {
       const existingUser = await User.findOne({ where: { email } });
-  
       if (existingUser) {
-        return res.status(400).json({ message: 'Email already in use' });
+          return res.status(400).json({ message: 'Email already in use' });
       }
-  
-      
+
       const hashedPassword = await bcrypt.hash(password, 10);
-  
-      
-      const newUser = await User.create({
-        name,
-        email,
-        password: hashedPassword,
-        role,
-        img,
-      });
-  
-      
-      client.set(`user:${newUser.id}`, JSON.stringify(newUser));
-  
-      
-      res.status(201).json({ message: 'User registered', id: newUser.id, img: newUser.img });
-    } catch (err) {
-      console.error('Registration error:', err);
+
      
-      return res.status(500).json( ErrorResponse('Server error', err.message));
-    }
-  });
+      const mfaSecret = speakeasy.generateSecret({ name: "basma_app" });
+
+      
+      const qrCodeUrl = await qr.toDataURL(mfaSecret.otpauth_url);
+
+      const newUser = await User.create({
+          name,
+          email,
+          password: hashedPassword,
+          role,
+          img,
+          mfa_secret: mfaSecret.base32, 
+      });
+
+      client.set(`user:${newUser.id}`, JSON.stringify(newUser));
+
+      res.status(201).json({
+          message: 'User registered. Set up MFA.',
+          id: newUser.id,
+          img: newUser.img,
+          mfa_secret: mfaSecret.otpauth_url, 
+          qr_code: qrCodeUrl
+      });
+  } catch (err) {
+      console.error('Registration error:', err);
+      return res.status(500).json(ErrorResponse('Server error', err.message));
+  }
+});
 
 
 
@@ -69,90 +75,64 @@ const MAX_DEVICES = 2;
 const SECRET_KEY = process.env.JWT_SECRET;
 
 exports.login = async (req, res) => {
-  const { email, password, deviceInfo } = req.body;
+  const { email, password, deviceInfo, token } = req.body;
 
   if (!deviceInfo) {
     return res.status(400).json(ErrorResponse('Device information is required'));
   }
 
   try {
-   
     const user = await User.findOne({ where: { email } });
     if (!user) {
       return res.status(400).json(ErrorResponse('User not found'));
     }
 
-    
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(400).json({
         error: "Invalid password",
-        details: ["The password provided does not match the stored password."]
+        details: ["The password provided does not match the stored password."],
       });
     }
 
-    
+
+    const verified = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: "base32",
+      token,
+    });
+
+
     const storedDeviceInfo = await client.get(`user:${user.id}:deviceInfo`);
 
     if (!storedDeviceInfo) {
+      await client.set(`user:${user.id}:deviceInfo`, JSON.stringify(deviceInfo));
+    } else if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
       
-      if (user.role === 'student') {
-        
-        await client.set(`user:${user.id}:deviceInfo`, JSON.stringify(deviceInfo));
-        return res.status(200).json({
-          message: 'تم حفظ معلومات جهازك. سوف تكون قادر على تسجيل الدخول فقط من هذا الجهاز',
-          token: jwt.sign(
-            { id: user.id, role: user.role, name: user.name, img: user.img },
-            SECRET_KEY,
-            { expiresIn: '1h' }
-          ),
-          name: user.name,
-          role: user.role,
-          id: user.id,
-          img: user.img
-        });
-      } else {
-        return res.status(200).json({
-          message: 'تم تسجيل الدخول بنجاح.',
-          token: jwt.sign(
-            { id: user.id, role: user.role, name: user.name, img: user.img },
-            SECRET_KEY,
-            { expiresIn: '1h' }
-          ),
-          name: user.name,
-          role: user.role,
-          id: user.id,
-          img: user.img
-        });
-      }
-    } else {
-      
-      if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
-        return res.status(403).json({
-          message: 'Login not allowed from this device'
-        });
-      }
-
-      
-      const token = jwt.sign(
-        { id: user.id, role: user.role, name: user.name, img: user.img },
-        SECRET_KEY,
-        { expiresIn: '1h' }
-      );
-
-      return res.status(200).json({
-        token,
-        name: user.name,
-        role: user.role,
-        id: user.id,
-        img: user.img
-      });
+      await client.del(`user:${user.id}:deviceInfo`);
+      return res.status(403).json({ message: "Login not allowed from this device" });
     }
+
+    const jwtToken = jwt.sign(
+      { id: user.id, role: user.role, name: user.name, img: user.img },
+      SECRET_KEY,
+      { expiresIn: "1h" },
+    );
+
+    res.status(200).json({
+      message: "Login successful",
+      token: jwtToken,
+      name: user.name,
+      role: user.role,
+      id: user.id,
+      img: user.img,
+    });
   } catch (err) {
     console.error('Login error:', err);
     return res.status(500).json(ErrorResponse('Server error', err.message));
   }
 };
+
 
 
 exports.logout = async (req, res) => {
