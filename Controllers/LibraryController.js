@@ -52,6 +52,61 @@ exports.createLibrary = async (req, res) => {
     }
 };
 
+  
+  
+  
+exports.getByFile = async (req, res) => {
+  const fileName = req.params.filename;
+
+  console.log("Received filename:", fileName);
+
+  try {
+      const cloudinaryResources = await cloudinary.api.resources({
+          type: "upload",
+          prefix: "",
+      });
+
+      console.log("Cloudinary resources:", cloudinaryResources);
+
+      const { book_name, author, page_num, department_id } = req.body;
+
+     
+      if (!book_name || !author || !page_num || !department_id || !req.file) {
+          return res.status(400).json({
+              error: "Validation failed",
+              details: [
+                  "All fields (book_name, author, page_num, department_id) and file upload are required.",
+              ],
+          });
+      }
+
+      const file_book = req.file.filename;
+      console.log("Uploaded file details:", req.file);
+
+      
+      const newLibrary = await Library.create({
+          book_name,
+          author,
+          page_num,
+          file_book,
+          department_id,
+      });
+
+      return res.status(201).json({
+          message: "The Create Library is Successfully",
+          library: newLibrary,
+      });
+  } catch (error) {
+      console.error("Error while processing request:", error);
+      return res.status(500).json({
+          error: "An unexpected error occurred",
+          details: [error.message || "Unknown error"],
+      });
+  }
+};
+
+
+
 exports.getByFile = async (req, res) => {
   try {
     const fileName = req.params.filename; // e.g., 'rpi8u7mvdzfkwqbao7fi'
@@ -99,6 +154,7 @@ exports.getByFile = async (req, res) => {
   //     res.status(500).json({ message: 'Failed to retrieve file from Cloudinary' });
   // }
 };
+
 
 exports.getLibrary = async (req, res) => {
   try {
@@ -188,16 +244,16 @@ exports.getLibraryById = async (req, res) => {
 };
 exports.getByDepartment = asyncHandler(async (req, res) => {
   try {
-    const departmentId = req.params.id; // Access department_id from req.params
+    const departmentId = req.params.id; 
 
-    // Use Sequelize's `findAll` to fetch records
+   
     const libraries = await Library.findAll({
       where: { department_id: departmentId },
       include: [
         {
           model: Department,
           as: "department",
-          attributes: ["title"], // Fetch only the department title
+          attributes: ["title"], 
         },
       ],
       attributes: [
