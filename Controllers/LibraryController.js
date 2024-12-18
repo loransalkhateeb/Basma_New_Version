@@ -55,41 +55,34 @@ exports.createLibrary = async (req, res) => {
   
   
 exports.getByFile = async (req, res) => {
-    const fileName = req.params.filename;
+  const fileName = req.params.filename;
 
-    console.log('Received filename:', fileName);
-
-    try {
-      
-        const result = await cloudinary.api.resources({
-            type: 'upload',
-            prefix: '', 
-        });
-
-        console.log('Cloudinary resources:', result);
+  console.log("Received filename:", fileName);
 
   try {
+      const cloudinaryResources = await cloudinary.api.resources({
+          type: "upload",
+          prefix: "",
+      });
+
+      console.log("Cloudinary resources:", cloudinaryResources);
+
       const { book_name, author, page_num, department_id } = req.body;
+
      
       if (!book_name || !author || !page_num || !department_id || !req.file) {
-          return res.status(400).json(
-              ErrorResponse("Validation failed", [
-                  "All fields (book_name, author, page_num, department_id) are required",
-              ])
-          );
+          return res.status(400).json({
+              error: "Validation failed",
+              details: [
+                  "All fields (book_name, author, page_num, department_id) and file upload are required.",
+              ],
+          });
       }
+
       const file_book = req.file.filename;
-
-      if (!req.file) {
-          return res.status(400).json(
-              ErrorResponse("Validation failed", ["File upload is required"])
-          );
-      }
-   
       console.log("Uploaded file details:", req.file);
-      
 
-     
+      
       const newLibrary = await Library.create({
           book_name,
           author,
@@ -98,45 +91,19 @@ exports.getByFile = async (req, res) => {
           department_id,
       });
 
-      
       return res.status(201).json({
-          message: 'The Create Library is Successfully',
+          message: "The Create Library is Successfully",
           library: newLibrary,
       });
   } catch (error) {
-      console.error("Error while creating Library entry:", error);
-      return res.status(500).json(
-          ErrorResponse("Failed to create Library entry", [
-              error.message || "An unexpected error occurred.",
-          ])
-      );
+      console.error("Error while processing request:", error);
+      return res.status(500).json({
+          error: "An unexpected error occurred",
+          details: [error.message || "Unknown error"],
+      });
   }
 };
-  
-  
 
-
-       
-        const file = result.resources.find(resource => resource.public_id === fileName);
-
-        if (!file) {
-            console.log('File not found in Cloudinary');
-            return res.status(404).json({ message: 'File not found' });
-        }
-
-        console.log('Found file:', file);
-
-        
-        res.setHeader('Content-Type', 'application/pdf');
-        
-        
-        res.redirect(file.secure_url); 
-
-    } catch (error) {
-        console.error('Error fetching file from Cloudinary:', error);
-        res.status(500).json({ message: 'Failed to retrieve file from Cloudinary' });
-    }
-};
 
 exports.getLibrary = async (req, res) => {
   try {

@@ -1,6 +1,6 @@
 const { createClient } = require('redis');
 
-// إعداد الاتصال بـ Redis
+
 const client = createClient({
   username: 'default',
   password: 'NXVbIXJuNZNA8906L4yZfvc6HvPHxxT2',  

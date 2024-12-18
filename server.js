@@ -23,9 +23,11 @@ const FAQRoutes = require('./Routes/FaqRoutes')
 const LibarryRoutes = require('./Routes/LibraryRoutes')
 const WhoWeAreRoutes = require('./Routes/WhoWeAresRoutes')
 const TagRoutes = require('./Routes/TagRoutes')
-
-
-
+const CouponsRoutes = require('./Routes/coponsRoutes')
+const TeacherRoutes = require('./Routes/TeacherRoutes')
+const UsersRoutes = require('./Routes/UserRouter')
+// const PaymentdepartmnetRouter = require('./Routes/Payment-departmnetRouter')
+// const PaymentCourseRouter = require('./Routes/Payment-CourseRouter')
 
 
 const app = express();
@@ -53,6 +55,12 @@ app.use('/Fqs',FAQRoutes)
 app.use('/Libraries',LibarryRoutes)
 app.use('/WhoWeAre',WhoWeAreRoutes)
 app.use('/Tags',TagRoutes)
+app.use('/TeacherRoutes',TeacherRoutes)
+app.use('/users',UsersRoutes)
+// app.use('/PaymentsDepartments',PaymentdepartmnetRouter)
+// app.use('/PaymentsCourse',PaymentCourseRouter)
+app.use('/Coupons',CouponsRoutes)
+
 
 
 
@@ -67,14 +75,20 @@ process.on('SIGINT', () => {
 });
 
 
+
+
 sequelize.sync({ force: false }).then(() => {
   console.log('Database connected and synced!');
 });
 
 
+
+
 app.get("/", (req, res) => {
   res.send("Welcome to Basma Academy!");
 });
+
+
 
 
 app.listen(process.env.PORT || 6060, () => {
