@@ -32,9 +32,7 @@ const PaymentCourseRouter = require('./Routes/Payment-CourseRouter')
 
 const PurchaseStepsRoutes = require('./Routes/PurchaseStepsRoutes')
 const ContactRoutes = require('./Routes/ContactRoutes')
-
 const ProfileRoutes = require('./Routes/ProfileRoutes')
-
 const CoursesUsers = require('./Models/CourseUsers')
 
 
@@ -78,9 +76,6 @@ app.use('/Coupons',CouponsRoutes)
 
 app.use('/purchasesteps',PurchaseStepsRoutes)
 app.use('/contactdynamic',ContactRoutes)
-app.use('/profile',ProfileRoutes)
-
-app.use(CoursesUsers)
 
 
 
