@@ -1,5 +1,8 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../Config/dbConnect'); 
+const department = require('../Models/DepartmentModel')
+const Courses = require('../Models/CourseUsers')
+const Coupons = require('../Models/CouponsModel')
 
 const Course_Users = sequelize.define('Course_Users', {
   id: {
@@ -43,5 +46,15 @@ const Course_Users = sequelize.define('Course_Users', {
   tableName: 'payments', 
   timestamps: true
 });
+
+
+department.hasMany(Course_Users, { foreignKey: 'department_id' });
+Course_Users.belongsTo(department, { foreignKey: 'department_id' }); 
+
+
+
+
+Coupons.hasMany(Course_Users, { foreignKey: 'coupon_id' })
+Course_Users.belongsTo(Coupons, { foreignKey: 'coupon_id' });
 
 module.exports = Course_Users;
