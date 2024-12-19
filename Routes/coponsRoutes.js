@@ -16,14 +16,14 @@ router.get('/getCouponByCode/:coupon_code', rateLimiter, CouponController.getCou
 
 
 
-router.put('/updateCoupon/:id', rateLimiter, authMiddleware, CouponController.updateCoupon);
+router.put('/updateCoupon/:id', rateLimiter, CouponController.updateCoupon);
 
 
 
-router.delete('/deleteCoupon/:id', rateLimiter, authMiddleware, CouponController.deleteCoupon);
+router.delete('/deleteCoupon/:id', rateLimiter, CouponController.deleteCoupon);
 
 
 
-router.delete('/deleteAllCoupons', rateLimiter, authMiddleware, CouponController.deleteAllCoupons);
+router.delete('/deleteAllCoupons', rateLimiter, CouponController.deleteAllCoupons);
 
 module.exports = router;
