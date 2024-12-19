@@ -32,6 +32,7 @@ const UsersRoutes = require('./Routes/UserRouter')
 
 const PurchaseStepsRoutes = require('./Routes/PurchaseStepsRoutes')
 const ContactRoutes = require('./Routes/ContactRoutes')
+const ProfileRoutes = require('./Routes/ProfileRoutes')
 
 
 
@@ -76,6 +77,7 @@ app.use('/Coupons',CouponsRoutes)
 
 app.use('/purchasesteps',PurchaseStepsRoutes)
 app.use('/contactdynamic',ContactRoutes)
+app.use('/profile',ProfileRoutes)
 
 
 
