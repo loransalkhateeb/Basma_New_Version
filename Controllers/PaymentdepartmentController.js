@@ -4,8 +4,8 @@ const Payment = require('../Models/PaymentsModel')
 const CourseUser = require('../Models/course_users')
 const Course = require('../Models/Courses')
 const asyncHandler = require("../MiddleWares/asyncHandler");
-
-
+const Coupon = require('../Models/CouponsModel')
+const Sequelize = require('../Config/dbConnect')
 
 exports.getDepartments = asyncHandler(async (req, res) => {
   
@@ -151,26 +151,26 @@ exports.buyDepartment = asyncHandler(async (req, res) => {
 
 
 exports.getCourseUsers = asyncHandler(async (req, res) => {
-  const cachedCourseUsers = await client.get('courseUsers');
-  if (cachedCourseUsers) {
-    return res.json(JSON.parse(cachedCourseUsers));
+  try {
+
+    const result = await Sequelize.query("SELECT * FROM course_users")
+
+    if (result.length == 0) {
+      return res.status(404).json({ message: "No course users found." });
+    }
+
+    return res.json(result);
+  } catch (err) {
+    console.error('Error fetching course user data:', err.message);
+    return res.status(500).json({ error: 'Failed to fetch course users', message: err.message });
   }
-
-  const courseUsers = await CourseUser.findAll({
-    include: [
-      { model: Payment, attributes: ['student_name', 'email', 'coupon_id', 'address', 'phone'] },
-      { model: Department, attributes: ['title'] },
-      { model: Course, attributes: ['subject_name'] },
-      { model: Coupon, attributes: ['coupon_code'] },
-    ],
-    raw: true,
-  });
-
-  
-  await client.set('courseUsers', JSON.stringify(courseUsers), 'EX', 3600);
-
-  res.json(courseUsers);
 });
+
+
+
+
+
+
 
 
 exports.deleteCourseUsers = asyncHandler(async (req, res) => {

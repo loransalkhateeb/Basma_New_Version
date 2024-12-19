@@ -92,6 +92,10 @@ const Payment = sequelize.define('Payment', {
 Payment.belongsTo(Coupon, { foreignKey: 'coupon_id' });
 Payment.belongsTo(Department, { foreignKey: 'department_id' });
 Payment.belongsTo(Course, { foreignKey: 'course_id' });
+
 Payment.hasMany(CourseUser, { foreignKey: 'payment_id' });
+CourseUser.belongsTo(Payment,{ foreignKey: 'payment_id'})
+
+
 
 module.exports = Payment;

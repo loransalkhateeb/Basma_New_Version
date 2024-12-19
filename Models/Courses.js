@@ -102,6 +102,13 @@ const courses = sequelize.define('courses', {
 courses.belongsTo(department, { foreignKey: 'department_id' }); 
 department.hasMany(courses, { foreignKey: 'department_id' });
 
+
+
+
+
+module.exports = courses;
+
 courses.belongsTo(Teacher, { foreignKey: 'teacher_id' }); 
 Teacher.hasMany(courses, { foreignKey: 'teacher_id' });
 module.exports = courses;
+

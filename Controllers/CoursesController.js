@@ -574,8 +574,6 @@ exports.getUserCountForCourse = asyncHandler(async (req, res) => {
 
 
 
-
-
 exports.getCourseCountByTeacher = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -585,36 +583,32 @@ exports.getCourseCountByTeacher = asyncHandler(async (req, res) => {
     return res.status(400).json({ errors: validationErrors });
   }
 
-  
-  const cachedData = await client.get(`teacher:${id}:course_count`);
-  if (cachedData) {
-    console.log('Serving from cache');
-    return res.status(200).json(JSON.parse(cachedData));
-  }
-
   try {
-    
+   
     const teacherData = await Teacher.findOne({
       where: { id },
       attributes: [
         'id',
         'teacher_name',
-        [Sequelize.fn('COUNT', Sequelize.col('Courses.id')), 'course_count'],
+        
+        [Sequelize.fn('COUNT', Sequelize.col('courses.id')), 'course_count'],
       ],
       include: [
         {
-          model: Course,
+          model: Course, 
           attributes: [], 
         },
       ],
-      group: ['Teacher.id', 'Teacher.teacher_name'],
+      
+      group: ['teachers.id', 'teachers.teacher_name'], 
     });
 
     
     if (!teacherData) {
-      throw new ErrorResponse('Teacher not found', 404);
+      throw  ErrorResponse('Teacher not found', 404);
     }
 
+    
     const result = {
       id: teacherData.id,
       teacher_name: teacherData.teacher_name,
@@ -622,8 +616,15 @@ exports.getCourseCountByTeacher = asyncHandler(async (req, res) => {
     };
 
     
-    await client.setEx(`teacher:${id}:course_count`, JSON.stringify(result), 'EX', 300);
+    const cacheData = JSON.stringify(result);
+    if (typeof cacheData !== 'string') {
+      throw new TypeError('Invalid cache data');
+    }
 
+   
+    await client.setEx(`teacher:${id}:course_count`, 300, cacheData);
+
+   
     res.status(200).json(result);
   } catch (err) {
     console.error('Failed to fetch teacher course counts:', err);
@@ -633,6 +634,11 @@ exports.getCourseCountByTeacher = asyncHandler(async (req, res) => {
     });
   }
 });
+
+
+
+
+
 
 
 

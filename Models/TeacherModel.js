@@ -1,6 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../Config/dbConnect');
-const departments = require('../Models/DepartmentModel');  
+const departments = require('../Models/DepartmentModel');
+const Course = require('../Models/Courses');  // تأكد من استيراد Course هنا
 
 const teachers = sequelize.define('teachers', {
     id: {
@@ -31,20 +32,20 @@ const teachers = sequelize.define('teachers', {
     email: {
         type: DataTypes.STRING,
         allowNull: false,
-        unique: true,  
+        unique: true,
         validate: {
-            isEmail: true,  
+            isEmail: true,
             notEmpty: true
         }
     },
-    department_id: {  
+    department_id: {
         type: DataTypes.INTEGER,
         allowNull: false,
         references: {
             model: departments,  
-            key: 'id'           
+            key: 'id'
         },
-        onDelete: 'CASCADE',  
+        onDelete: 'CASCADE',
     }
 }, {
     timestamps: false,
@@ -53,6 +54,10 @@ const teachers = sequelize.define('teachers', {
 
 
 teachers.belongsTo(departments, { foreignKey: 'department_id' }); 
-departments.hasMany(teachers, { foreignKey: 'department_id' });  
+departments.hasMany(teachers, { foreignKey: 'department_id' });
+
+
+teachers.hasMany(Course, { foreignKey: 'teacher_id' });  
+Course.belongsTo(teachers, { foreignKey: 'teacher_id' }); 
 
 module.exports = teachers;

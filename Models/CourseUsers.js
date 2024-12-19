@@ -1,75 +1,114 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../Config/dbConnect');
-const Blog = require('../Models/BlogsModel');
-const Courses = require('../Models/Courses');
-const User = require('../Models/UserModel');
-const Payment = require('../Models/PaymentsModel');
+const department = require('../Models/DepartmentModel');
+const User = require('./UserModel');
+const Course_Users = require('./course_users');
 
 
-const CourseUsers = sequelize.define('course_users', {
+
+
+
+const courses = sequelize.define('courses', {
     id: {
         type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
-        allowNull: false,
+        allowNull: false
     },
-    payment_status: {
+    subject_name: {
         type: DataTypes.STRING,
         allowNull: false,
         validate: {
             notEmpty: true,
-            len: [1, 255],
-        },
+            len: [1, 255]
+        }
     },
+    before_offer:{
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+            len: [1, 255]
+        }
+    },
+    after_offer:{
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+            len: [1, 255]
+        }
+    },
+    coupon:{
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+            len: [1, 255]
+        }
+    },
+    descr:{
+        type: DataTypes.TEXT,
+        allowNull: false,
+        validate: {
+            notEmpty: true
+        }
+    },
+    std_num:{
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    rating:{
+        type: DataTypes.DECIMAL(2, 1),
+        allowNull: false,
+        validate: {
+            min: 1,
+            max: 5
+        }
+    },
+    img:{
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+            len: [1, 255]
+        }
+    },
+    defaultvideo:{
+        type: DataTypes.STRING,
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+            len: [1, 255]
+        }
+    },
+    total_video_duration:{
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+            len: [1, 255]
+        }
+    },
+    created_at:{
+        type: DataTypes.DATE,
+        defaultValue: DataTypes.NOW
+    },
+    file_book:{
+        type: DataTypes.STRING,
+        allowNull: true,
+        validate: {
+            len: [1, 255]
+        }
+    }
+
 }, {
     timestamps: false,
-    tableName: 'course_users',
-    indexes: [
-       
-        {
-            fields: ['course_id'],
-            name: 'idx_course_id', 
-        },
-        
-        {
-            fields: ['user_id'],
-            name: 'idx_user_id', 
-        },
-        
-        {
-            fields: ['payment_id'],
-            name: 'idx_payment_id', 
-        },
-    ]
+    tableName: 'courses'
 });
 
 
-Courses.hasMany(CourseUsers, {
-    foreignKey: 'course_id',
-    as: 'courseUsers',
-});
-CourseUsers.belongsTo(Courses, {
-    foreignKey: 'course_id',
-    as: 'course',
-});
-
-User.hasMany(CourseUsers, {
-    foreignKey: 'user_id',
-    as: 'userCourses',
-});
-CourseUsers.belongsTo(User, {
-    foreignKey: 'user_id',
-    as: 'user',
-});
-
-Payment.hasOne(CourseUsers, {
-    foreignKey: 'payment_id',
-    as: 'paymentDetails',
-});
-CourseUsers.belongsTo(Payment, {
-    foreignKey: 'payment_id',
-    as: 'payment',
-});
+User.hasMany(Course_Users, { foreignKey: 'department_id' });
+Course_Users.belongsTo(User, { foreignKey: 'department_id' }); 
 
 
-module.exports = CourseUsers;
+courses.hasMany(Course_Users, { foreignKey: 'course_id'})
+Course_Users.belongsTo(courses, { foreignKey: 'course_id' });
+module.exports = courses;
