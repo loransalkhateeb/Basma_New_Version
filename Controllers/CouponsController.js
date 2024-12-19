@@ -7,44 +7,61 @@ const Course = require('../Models/Courses');
 
 
 exports.addCoupon = asyncHandler(async (req, res) => {
-    const { coupon_code, coupon_type, expiration_date, department_id, course_id, used } = req.body;
-  
-    if (!['course', 'department'].includes(coupon_type)) {
+  const { coupon_code, coupon_type, expiration_date, department_id, course_id, used } = req.body;
+
+  if (!['course', 'department'].includes(coupon_type)) {
       return res.status(400).json({ message: "Invalid coupon type" });
-    }
+  }
+
   
-    if (!expiration_date) {
+  if (!expiration_date) {
       return res.status(400).json({ message: "Expiration date is required" });
-    }
+  }
+
   
-    if (coupon_type === 'department' && !department_id) {
+  if (coupon_type === 'department' && !department_id) {
       return res.status(400).json({ message: "Department ID is required for department type" });
-    }
-    if (coupon_type === 'course' && !course_id) {
+  }
+  if (coupon_type === 'course' && !course_id) {
       return res.status(400).json({ message: "Course ID is required for course type" });
-    }
+  }
+
   
-    const departmentExists = coupon_type === 'department' && await Department.findByPk(department_id);
-    const courseExists = coupon_type === 'course' && await Course.findByPk(course_id);
+  const cachedCoupon = await client.get(`coupon:${coupon_code}`);
+  if (cachedCoupon) {
+      return res.status(400).json({ message: "Coupon already exists in cache" });
+  }
+
   
-    if (coupon_type === 'department' && !departmentExists) {
+  const departmentExists = coupon_type === 'department' && await Department.findByPk(department_id);
+  const courseExists = coupon_type === 'course' && await Course.findByPk(course_id);
+
+  if (coupon_type === 'department' && !departmentExists) {
       return res.status(400).json({ message: "Invalid department ID" });
-    }
-    if (coupon_type === 'course' && !courseExists) {
+  }
+  if (coupon_type === 'course' && !courseExists) {
       return res.status(400).json({ message: "Invalid course ID" });
-    }
+  }
+
   
-    const newCoupon = await Coupon.create({
+  const newCoupon = await Coupon.create({
       coupon_code,
       coupon_type,
       expiration_date,
       department_id: department_id,
       course_id: course_id,
       used,
-    });
-  
-    res.status(201).json({ message: "Coupon added successfully", newCoupon});
   });
+
+  
+  await client.set(
+      `coupon:${coupon_code}`,
+      JSON.stringify(newCoupon),
+      { EX: 3600 } 
+  );
+
+  res.status(201).json({ message: "Coupon added successfully", newCoupon });
+});
 
 
 
@@ -68,22 +85,28 @@ exports.getCoupon = asyncHandler(async (req, res) => {
 
 exports.updateCoupon = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { coupon_code, coupon_type, expiration_date, course_id, department_id } = req.body;
+  const { coupon_code, coupon_type, expiration_date, course_id, department_id, used } = req.body;
 
+  
   const coupon = await Coupon.findByPk(id);
   if (!coupon) {
     return res.status(404).json({ message: "Coupon not found" });
   }
 
+  
   coupon.coupon_code = coupon_code;
   coupon.coupon_type = coupon_type;
   coupon.expiration_date = expiration_date;
   coupon.course_id = course_id || null;
   coupon.department_id = department_id || null;
-
+  coupon.used = used || null;
   await coupon.save();
 
-  res.status(200).json({ message: "Coupon updated successfully" });
+  
+  const redisKey = `coupon:${coupon_code}`;
+  await client.set(redisKey, JSON.stringify(coupon), { EX: 3600 }); 
+
+  res.status(200).json({ message: "Coupon updated successfully", coupon });
 });
 
 
