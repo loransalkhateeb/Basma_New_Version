@@ -18,7 +18,6 @@ const nodemailer = require("nodemailer");
 
 
 const sendMFAEmail = async (userEmail, mfaCode, userId) => {
- 
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: {
@@ -36,8 +35,8 @@ const sendMFAEmail = async (userEmail, mfaCode, userId) => {
 
   await transporter.sendMail(mailOptions);
 
-  
-  await client.set(`user:${userId}:mfa_token`, mfaCode, 'EX', 300);
+
+  await client.set(`user:${userId}:mfa_token`, mfaCode, 'EX', 300); 
 };
 
 exports.register = asyncHandler(async (req, res) => {
@@ -61,14 +60,13 @@ exports.register = asyncHandler(async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // توليد الرمز السري
+   
     const mfaSecret = speakeasy.generateSecret({ name: "YourAppName" });
     const mfaToken = speakeasy.totp({
       secret: mfaSecret.base32,
       encoding: 'base32',
     });
 
-    // إنشاء المستخدم الجديد
     const newUser = await User.create({
       name,
       email,
@@ -78,10 +76,9 @@ exports.register = asyncHandler(async (req, res) => {
       mfa_secret: mfaSecret.base32,
     });
 
-    // تخزين البيانات في Redis
     client.set(`user:${newUser.id}`, JSON.stringify(newUser));
 
-    // إرسال رمز MFA عبر البريد الإلكتروني
+    
     await sendMFAEmail(email, mfaToken, newUser.id);
 
     res.status(201).json({
@@ -98,36 +95,37 @@ exports.register = asyncHandler(async (req, res) => {
 
 
 
+
 const MAX_DEVICES = 2;
 const SECRET_KEY = process.env.JWT_SECRET;
 
 exports.login = asyncHandler(async (req, res) => {
   const { email, password, mfa_token } = req.body;
 
-  // التحقق من وجود المستخدم
+
   const user = await User.findOne({ where: { email } });
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
   }
 
-  // التحقق من كلمة المرور
+
   const validPassword = await bcrypt.compare(password, user.password);
   if (!validPassword) {
     return res.status(400).json({ message: 'Invalid password' });
   }
 
-  // التحقق من وجود رمز MFA
+  
   if (user.mfa_secret) {
-    // جلب الرمز المخزن في Redis
+    
     const storedToken = await client.get(`user:${user.id}:mfa_token`);
 
-    // التحقق من أن الرمز المدخل يتطابق مع الرمز المخزن
+   
     if (mfa_token !== storedToken) {
       return res.status(400).json({ message: 'Invalid MFA token' });
     }
   }
 
-  // توليد رمز JWT
+ 
   const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
 
   res.status(200).json({
@@ -188,7 +186,7 @@ exports.logout = async (req, res) => {
     }
   
     try {
-      const user = await User.findByEmail(email);
+      const user = await User.findOne(email);
       if (!user) {
         return res.status(200).json({ message: 'The email does not exist. Please enter the correct email.' });
       }
