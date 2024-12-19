@@ -25,4 +25,12 @@ router.put('/:id',
     { name: 'file_book', maxCount: 1 }
   ]), CoursesController.updateCourse);
 
+
+  router.get('/users-counts/:id', CoursesController.getUserCountForCourse);
+  router.get('/course-counts/:id', CoursesController.getCourseCountByTeacher);
+  router.get('/lesson-counts/:id', CoursesController.getLessonCountForCourses);
+
+
+
+
 module.exports = router;
