@@ -4,6 +4,8 @@ const Video = require('../Models/Videos.js');
 // const { sendEmailNotification } = require('../Utils/emailUtils');
 const { client } = require('../Utils/redisClient');
 
+const CourseUsers = require('../Models/CourseUsers.js')
+
 const {Sequelize} = require('../Config/dbConnect.js') 
 
 const { type } = require("os");
@@ -373,7 +375,7 @@ exports.getCourseById = async (req, res) => {
         ErrorResponse("Course not found", [`No course found with the given ID: ${id}`])
       );
     }
-    res.status(200).json(course);
+    res.status(200).json([course]);
   } catch (error) {
     console.error(error);
     res.status(500).json(
@@ -517,53 +519,52 @@ exports.updateCourse = async (req, res) => {
 
 exports.getUserCountForCourse = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
+  await client.del(`course:${id}:student_count`);
 
   const cachedData = await client.get(`course:${id}:student_count`);
   if (cachedData) {
     console.log('Serving from cache');
-    return res.status(200).json(JSON.parse(cachedData));
+    return res.status(200).json({ id, student_count: parseInt(cachedData, 10) });
   }
 
   try {
-    
     const courseData = await Course.findOne({
       where: { id },
       attributes: [
         'id',
-        [Sequelize.fn('COUNT', Sequelize.col('CourseUsers.user_id')), 'student_count'],
+        [Sequelize.fn('COUNT', Sequelize.col('courseUsers.user_id')), 'student_count'], 
       ],
       include: [
         {
-          model: Course,
-          attributes: [], 
+          model: CourseUsers,
+          as: 'courseUsers', 
+          attributes: [],  
         },
       ],
-      group: ['Course.id'],
+      group: ['courses.id'],
     });
 
-    
     if (!courseData) {
       throw new ErrorResponse('Course not found', 404);
     }
 
-    const result = {
+    const studentCount = parseInt(courseData.dataValues.student_count, 10);
+
+    await client.setEx(`course:${id}:student_count`, studentCount.toString(), 'EX', 300);
+
+    res.status(200).json({
       id: courseData.id,
-      student_count: parseInt(courseData.dataValues.student_count, 10),
-    };
-
-    
-    await client.setEx(`course:${id}:student_count`, JSON.stringify(result), 'EX', 300);
-
-    res.status(200).json(result);
+      student_count: studentCount,
+    });
   } catch (err) {
-    console.error('Failed to fetch user count for course:', err);
+    // console.error('Failed to fetch user count for course:', err);
     res.status(err.statusCode || 500).json({
       error: 'Failed to fetch user count for course',
       message: err.message,
     });
   }
 });
+
 
 
 
@@ -674,7 +675,7 @@ exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
 
     res.status(200).json(result); // Send response as an array
   } catch (err) {
-    console.error('Failed to fetch lesson count for courses:', err);
+    // console.error('Failed to fetch lesson count for courses:', err);
     res.status(500).json({
       error: 'Failed to fetch lesson count for courses',
       message: err.message,

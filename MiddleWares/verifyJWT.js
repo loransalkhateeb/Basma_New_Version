@@ -242,7 +242,7 @@ exports.logout = async (req, res) => {
       await saveResetToken(user.id, resetToken);
   
       
-      const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
+      const baseUrl = `process.env.BASE_URL || ${req.protocol}://${req.get('host')}`;
       const resetUrl = `${baseUrl}/resetPassword/${resetToken}`;
   
       
