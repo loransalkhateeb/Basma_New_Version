@@ -5,11 +5,18 @@ const transporter = require("../Config/Mailer.js");
 const dotenv=require('dotenv')
 const asyncHandler = require('../MiddleWares/asyncHandler.js')
 const { client } = require('../Utils/redisClient');
+
 const { ErrorResponse, validateInput } = require("../Utils/validateInput");
 const qr = require('qrcode');
 
 
+const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+
+
+const speakeasy = require('speakeasy');
+
 dotenv.config();
+const qr = require('qrcode');
 
 
 
@@ -28,6 +35,7 @@ exports.register = asyncHandler(async (req, res) => {
   }
 
   try {
+
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already in use' });
@@ -64,6 +72,44 @@ exports.register = asyncHandler(async (req, res) => {
 });
 
 
+      const existingUser = await User.findOne({ where: { email } });
+      if (existingUser) {
+          return res.status(400).json({ message: 'Email already in use' });
+      }
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+     
+      const mfaSecret = speakeasy.generateSecret({ name: "basma_app" });
+
+      
+      const qrCodeUrl = await qr.toDataURL(mfaSecret.otpauth_url);
+
+      const newUser = await User.create({
+          name,
+          email,
+          password: hashedPassword,
+          role,
+          img,
+          mfa_secret: mfaSecret.base32, 
+      });
+
+      client.set(`user:${newUser.id}`, JSON.stringify(newUser));
+
+      res.status(201).json({
+          message: 'User registered. Set up MFA.',
+          id: newUser.id,
+          img: newUser.img,
+          mfa_secret: mfaSecret.otpauth_url, 
+          qr_code: qrCodeUrl
+      });
+  } catch (err) {
+      console.error('Registration error:', err);
+      return res.status(500).json(ErrorResponse('Server error', err.message));
+  }
+});
+
+
 
 
 
@@ -92,16 +138,18 @@ exports.login = async (req, res) => {
       });
     }
 
-   
+
     const verified = speakeasy.totp.verify({
       secret: user.mfa_secret,
       encoding: "base32",
       token,
     });
 
+
     if (!verified) {
       return res.status(401).json({ message: "Invalid MFA token" });
     }
+
 
     const storedDeviceInfo = await client.get(`user:${user.id}:deviceInfo`);
 

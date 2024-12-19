@@ -1,0 +1,23 @@
+{
+  "development": {
+    "username": "u670406748_ba9ma",
+    "password": "6AstUBrzX5my",
+    "database": "u670406748_ba9ma",
+    "host": "193.203.184.65",
+    "dialect": "mysql"
+  },
+  "test": {
+    "username": "u670406748_ba9ma",
+    "password": "6AstUBrzX5my",
+    "database": "u670406748_ba9ma",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  },
+  "production": {
+    "username": "u670406748_ba9ma",
+    "password": "6AstUBrzX5my",
+    "database": "u670406748_ba9ma",
+    "host": "127.0.0.1",
+    "dialect": "mysql"
+  }
+}
