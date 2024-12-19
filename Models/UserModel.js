@@ -34,10 +34,6 @@ const User = sequelize.define('User', {
   reset_token_expiration: {
     type: DataTypes.DATE,
     allowNull: true,
-  },
-  mfa_secret:{
-    type: DataTypes.STRING(512),
-    allowNull:true
   }
 }, {
   timestamps: false, 

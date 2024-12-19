@@ -51,7 +51,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
 
   
   if (password && password !== confirmPassword) {
-    return res.status(400).send(new ErrorResponse('Passwords do not match', 400));
+    return res.status(400).send('Passwords do not match');
   }
 
   let hashedPassword;
@@ -59,7 +59,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
     try {
       hashedPassword = await bcrypt.hash(password, 10); 
     } catch (err) {
-      return res.status(500).send(new ErrorResponse('Error hashing password', 500));
+      return res.status(500).send('Error hashing password');
     }
   }
 
@@ -92,7 +92,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
       img: user.img
     });
   } catch (err) {
-    return res.status(500).send(new ErrorResponse(err.message, 500)); 
+    return res.status(500).send(err.message); 
   }
 });
 
@@ -130,5 +130,3 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
     return res.status(500).send(new ErrorResponse(err.message, 500)); 
   }
 });
-
-

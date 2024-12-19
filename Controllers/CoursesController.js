@@ -356,7 +356,11 @@ exports.addCourse = async (req, res) => {
 
 exports.getcourses = async (req, res) => {
   try {
-    const courses = await Course.findAll();
+    const courses = await Course.findAll({
+      include: [
+        { model: Department, attributes: ['title'] }
+      ],
+    });
     res.status(200).json(courses);
   } catch (error) {
     console.error(error);
@@ -375,7 +379,7 @@ exports.getCourseById = async (req, res) => {
         ErrorResponse("Course not found", [`No course found with the given ID: ${id}`])
       );
     }
-    res.status(200).json(course);
+    res.status(200).json([course]);
   } catch (error) {
     console.error(error);
     res.status(500).json(
@@ -519,6 +523,7 @@ exports.updateCourse = async (req, res) => {
 
 exports.getUserCountForCourse = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  await client.del(`course:${id}:student_count`);
 
   const cachedData = await client.get(`course:${id}:student_count`);
   if (cachedData) {
@@ -556,7 +561,7 @@ exports.getUserCountForCourse = asyncHandler(async (req, res) => {
       student_count: studentCount,
     });
   } catch (err) {
-    console.error('Failed to fetch user count for course:', err);
+    // console.error('Failed to fetch user count for course:', err);
     res.status(err.statusCode || 500).json({
       error: 'Failed to fetch user count for course',
       message: err.message,
@@ -639,14 +644,13 @@ exports.getCourseCountByTeacher = asyncHandler(async (req, res) => {
 
 exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
   const { id } = req.params;
-
-  
+  await client.del(`course:${id}:lesson_count`);
+  // Validate input
   const validationErrors = validateInput({ id });
   if (validationErrors.length > 0) {
     return res.status(400).json({ errors: validationErrors });
   }
-
-  
+  // Check Redis cache
   const cachedData = await client.get(`course:${id}:lesson_count`);
   if (cachedData) {
     console.log('Serving from cache');
@@ -654,7 +658,7 @@ exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
   }
 
   try {
-    
+    // Fetch lesson count from the database
     const lessonCountData = await Video.findAll({
       where: { course_id: id },
       attributes: [
@@ -665,20 +669,23 @@ exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
       raw: true,
     });
 
-    
+    // If no lessons are found
     if (!lessonCountData || lessonCountData.length === 0) {
       console.warn('No lessons found');
       return res.status(404).json({ message: 'No lessons found' });
     }
 
-    const result = lessonCountData[0]; 
+    const result = lessonCountData.map((entry) => ({
+      course_id: entry.course_id,
+      lesson_count: entry.lesson_count,
+    })); // Return result in array format
 
-    
-    await client.setEx(`course:${id}:lesson_count`, JSON.stringify(result), 'EX', 300);
+    // Save to Redis cache with a 300-second expiration
+    await client.setEx(`course:${id}:lesson_count`, 300, JSON.stringify(result));
 
-    res.status(200).json(result);
+    res.status(200).json(result); // Send response as an array
   } catch (err) {
-    console.error('Failed to fetch lesson count for courses:', err);
+    // console.error('Failed to fetch lesson count for courses:', err);
     res.status(500).json({
       error: 'Failed to fetch lesson count for courses',
       message: err.message,

@@ -49,7 +49,7 @@ exports.register = asyncHandler(async (req, res) => {
       mfa_secret: mfaSecret.base32, 
     });
 
-    client.set(`user:${newUser.id}, JSON.stringify(newUser)`);
+    client.set(`user:${newUser.id}`, JSON.stringify(newUser));
 
     res.status(201).json({
       message: 'User registered. Set up MFA.',
@@ -171,7 +171,7 @@ exports.logout = async (req, res) => {
     try {
       
       // const decoded = jwt.verify(token, process.env.SECRET_KEY);
-      // await client.del(user:${decoded.id}:session);
+      // await client.del(`user:${decoded.id}:session`);
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error) {
       console.error('JWT Error:', error);
@@ -307,3 +307,4 @@ exports.logout = async (req, res) => {
       res.status(500).send('Server error');
     }
   };
+  
