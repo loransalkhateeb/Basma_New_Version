@@ -356,7 +356,11 @@ exports.addCourse = async (req, res) => {
 
 exports.getcourses = async (req, res) => {
   try {
-    const courses = await Course.findAll();
+    const courses = await Course.findAll({
+      include: [
+        { model: Department, attributes: ['title'] }
+      ],
+    });
     res.status(200).json(courses);
   } catch (error) {
     console.error(error);
@@ -682,3 +686,41 @@ exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
     });
   }
 });
+
+
+
+
+
+exports.getByDepartment = async (req, res) => {
+  try {
+    const department_id = req.params.id;
+    const courses = await Course.findAll({
+      where: {
+        department_id: department_id,
+      },
+      include: [
+        {
+          model: Department,
+          attributes: ['title'],
+        },
+      ],
+      attributes: {
+        include: [
+         
+          [Sequelize.fn('DATE_FORMAT', Sequelize.col('created_at'), '%Y-%m-%d'), 'created_date']
+        ]
+      }
+    });
+
+    
+    if (!courses || courses.length === 0) {
+      return res.status(404).json({ message: 'No courses found for this department.' });
+    }
+
+    return res.json(courses);
+  } catch (err) {
+    console.error(err);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+

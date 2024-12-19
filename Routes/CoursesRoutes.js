@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../Config/Multer');
-const CoursesController = require('../Controllers/CoursesController')
+const CoursesController = require('../Controllers/CoursesController');
+const rateLimit = require('../MiddleWares/rateLimiter')
 
 router.post('/addCourse',
   upload.fields([
@@ -9,27 +10,27 @@ router.post('/addCourse',
     { name: 'defaultvideo', maxCount: 1 },
     { name: 'url', maxCount: 10 },
     { name: 'file_book', maxCount: 1 }
-  ]), CoursesController.addCourse);
+  ]), rateLimit,CoursesController.addCourse);
 
-router.get('/', CoursesController.getcourses);
-router.get('/:id', CoursesController.getCourseById);
-router.delete('/delete/:id', CoursesController.deleteCourse);
-router.get('/videos/:id', CoursesController.getCourseVideos);
-router.delete('/videos/:id', CoursesController.deleteVideoById);
-router.get('/filter/:department_id/:teacher_email', CoursesController.getByDepartmentAndTeacher);
+router.get('/',rateLimit, CoursesController.getcourses);
+router.get('/:id',rateLimit, CoursesController.getCourseById);
+router.delete('/delete/:id',rateLimit, CoursesController.deleteCourse);
+router.get('/videos/:id',rateLimit, CoursesController.getCourseVideos);
+router.delete('/videos/:id',rateLimit, CoursesController.deleteVideoById);
+router.get('/filter/:department_id/:teacher_email',rateLimit, CoursesController.getByDepartmentAndTeacher);
 router.put('/:id',
   upload.fields([
     { name: 'img', maxCount: 10 },
     { name: 'defaultvideo', maxCount: 10 },
     { name: 'videoFiles', maxCount: 20 },
     { name: 'file_book', maxCount: 1 }
-  ]), CoursesController.updateCourse);
+  ]), rateLimit,CoursesController.updateCourse);
 
 
-  router.get('/users-counts/:id', CoursesController.getUserCountForCourse);
-  router.get('/course-counts/:id', CoursesController.getCourseCountByTeacher);
-  router.get('/lesson-counts/:id', CoursesController.getLessonCountForCourses);
-
+  router.get('/users-counts/:id',rateLimit, CoursesController.getUserCountForCourse);
+  router.get('/course-counts/:id',rateLimit, CoursesController.getCourseCountByTeacher);
+  router.get('/lesson-counts/:id',rateLimit, CoursesController.getLessonCountForCourses);
+  router.get('/getbydep/:id',rateLimit, CoursesController.getByDepartment);
 
 
 
