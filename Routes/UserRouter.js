@@ -14,6 +14,7 @@ const passwordResetLimiter = rateLimit({
   });
 
 router.post('/register',upload.single('img'), register);
+
 router.post('/CreateUser',upload.single('img'), UserController.createUser);
 router.post('/login', login);
 router.post('/logout',logout);

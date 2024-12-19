@@ -1,18 +1,44 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../Models/UserModel.js');
-const transporter = require("../Config/Mailer.js");
 const dotenv=require('dotenv')
 const asyncHandler = require('../MiddleWares/asyncHandler.js')
 const { client } = require('../Utils/redisClient');
 const { ErrorResponse, validateInput } = require("../Utils/validateInput");
 const qr = require('qrcode');
-
+const speakeasy = require('speakeasy')
 
 dotenv.config();
 
 
 
+
+const nodemailer = require("nodemailer");
+
+
+
+const sendMFAEmail = async (userEmail, mfaCode, userId) => {
+ 
+  const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
+    },
+  });
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: userEmail,
+    subject: 'Your MFA Code',
+    text: `Your MFA code is: ${mfaCode}`,
+  };
+
+  await transporter.sendMail(mailOptions);
+
+  
+  await client.set(`user:${userId}:mfa_token`, mfaCode, 'EX', 300);
+};
 
 exports.register = asyncHandler(async (req, res) => {
   const { name, email, password, confirmPassword, role } = req.body;
@@ -35,35 +61,39 @@ exports.register = asyncHandler(async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-   
+    // توليد الرمز السري
     const mfaSecret = speakeasy.generateSecret({ name: "YourAppName" });
-    console.log("New MFA Secret: ", mfaSecret.base32); 
+    const mfaToken = speakeasy.totp({
+      secret: mfaSecret.base32,
+      encoding: 'base32',
+    });
 
-    
+    // إنشاء المستخدم الجديد
     const newUser = await User.create({
       name,
       email,
       password: hashedPassword,
       role,
       img,
-      mfa_secret: mfaSecret.base32, 
+      mfa_secret: mfaSecret.base32,
     });
 
+    // تخزين البيانات في Redis
     client.set(`user:${newUser.id}`, JSON.stringify(newUser));
 
+    // إرسال رمز MFA عبر البريد الإلكتروني
+    await sendMFAEmail(email, mfaToken, newUser.id);
+
     res.status(201).json({
-      message: 'User registered. Set up MFA.',
+      message: 'User registered. MFA token sent to email.',
       id: newUser.id,
       img: newUser.img,
-      mfa_secret: mfaSecret.otpauth_url, 
     });
   } catch (err) {
     console.error('Registration error:', err);
-    return res.status(500).json(ErrorResponse('Server error', err.message));
+    return res.status(500).json({ message: 'Server error', error: err.message });
   }
 });
-
-
 
 
 
@@ -71,67 +101,50 @@ exports.register = asyncHandler(async (req, res) => {
 const MAX_DEVICES = 2;
 const SECRET_KEY = process.env.JWT_SECRET;
 
-exports.login = async (req, res) => {
-  const { email, password, deviceInfo, token } = req.body;
+exports.login = asyncHandler(async (req, res) => {
+  const { email, password, mfa_token } = req.body;
 
-  if (!deviceInfo) {
-    return res.status(400).json(ErrorResponse('Device information is required'));
+  // التحقق من وجود المستخدم
+  const user = await User.findOne({ where: { email } });
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
   }
 
-  try {
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      return res.status(400).json(ErrorResponse('User not found'));
+  // التحقق من كلمة المرور
+  const validPassword = await bcrypt.compare(password, user.password);
+  if (!validPassword) {
+    return res.status(400).json({ message: 'Invalid password' });
+  }
+
+  // التحقق من وجود رمز MFA
+  if (user.mfa_secret) {
+    // جلب الرمز المخزن في Redis
+    const storedToken = await client.get(`user:${user.id}:mfa_token`);
+
+    // التحقق من أن الرمز المدخل يتطابق مع الرمز المخزن
+    if (mfa_token !== storedToken) {
+      return res.status(400).json({ message: 'Invalid MFA token' });
     }
+  }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({
-        error: "Invalid password",
-        details: ["The password provided does not match the stored password."],
-      });
-    }
+  // توليد رمز JWT
+  const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
 
-   
-    const verified = speakeasy.totp.verify({
-      secret: user.mfa_secret,
-      encoding: "base32",
-      token,
-    });
-
-    if (!verified) {
-      return res.status(401).json({ message: "Invalid MFA token" });
-    }
-
-    const storedDeviceInfo = await client.get(`user:${user.id}:deviceInfo`);
-
-    if (!storedDeviceInfo) {
-      await client.set(`user:${user.id}:deviceInfo`, JSON.stringify(deviceInfo));
-    } else if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
-      
-      await client.del(`user:${user.id}:deviceInfo`);
-      return res.status(403).json({ message: "Login not allowed from this device" });
-    }
-
-    const jwtToken = jwt.sign(
-      { id: user.id, role: user.role, name: user.name, img: user.img },
-      SECRET_KEY,
-      { expiresIn: "1h" },
-    );
-
-    res.status(200).json({
-      message: "Login successful",
-      token: jwtToken,
-      name: user.name,
-      role: user.role,
+  res.status(200).json({
+    message: 'Login successful',
+    token,
+    user: {
       id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
       img: user.img,
-    });
-  } catch (err) {
-    console.error('Login error:', err);
-    return res.status(500).json(ErrorResponse('Server error', err.message));
-  }
-};
+    },
+  });
+});
+
+
+
 
 
 
