@@ -2,6 +2,9 @@ const { validateInput, ErrorResponse } = require('../Utils/validateInput');
 const Course = require('../Models/Courses.js');
 const Video = require('../Models/Videos.js');
 // const { sendEmailNotification } = require('../Utils/emailUtils');
+const { client } = require('../Utils/redisClient');
+
+const {Sequelize} = require('../Config/dbConnect.js') 
 
 const { type } = require("os");
 const asyncHandler = require("../MiddleWares/asyncHandler.js");
@@ -412,6 +415,11 @@ exports.getCourseVideos = async (req, res) => {
   }
 };
 
+
+
+
+
+
 exports.deleteVideoById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -503,3 +511,173 @@ exports.updateCourse = async (req, res) => {
     );
   }
 };
+
+
+
+
+exports.getUserCountForCourse = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+
+  const cachedData = await client.get(`course:${id}:student_count`);
+  if (cachedData) {
+    console.log('Serving from cache');
+    return res.status(200).json(JSON.parse(cachedData));
+  }
+
+  try {
+    
+    const courseData = await Course.findOne({
+      where: { id },
+      attributes: [
+        'id',
+        [Sequelize.fn('COUNT', Sequelize.col('CourseUsers.user_id')), 'student_count'],
+      ],
+      include: [
+        {
+          model: Course,
+          attributes: [], 
+        },
+      ],
+      group: ['Course.id'],
+    });
+
+    
+    if (!courseData) {
+      throw new ErrorResponse('Course not found', 404);
+    }
+
+    const result = {
+      id: courseData.id,
+      student_count: parseInt(courseData.dataValues.student_count, 10),
+    };
+
+    
+    await client.setEx(`course:${id}:student_count`, JSON.stringify(result), 'EX', 300);
+
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('Failed to fetch user count for course:', err);
+    res.status(err.statusCode || 500).json({
+      error: 'Failed to fetch user count for course',
+      message: err.message,
+    });
+  }
+});
+
+
+
+
+
+
+
+exports.getCourseCountByTeacher = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  
+  const validationErrors = validateInput({ id });
+  if (validationErrors.length > 0) {
+    return res.status(400).json({ errors: validationErrors });
+  }
+
+  
+  const cachedData = await client.get(`teacher:${id}:course_count`);
+  if (cachedData) {
+    console.log('Serving from cache');
+    return res.status(200).json(JSON.parse(cachedData));
+  }
+
+  try {
+    
+    const teacherData = await Teacher.findOne({
+      where: { id },
+      attributes: [
+        'id',
+        'teacher_name',
+        [Sequelize.fn('COUNT', Sequelize.col('Courses.id')), 'course_count'],
+      ],
+      include: [
+        {
+          model: Course,
+          attributes: [], 
+        },
+      ],
+      group: ['Teacher.id', 'Teacher.teacher_name'],
+    });
+
+    
+    if (!teacherData) {
+      throw new ErrorResponse('Teacher not found', 404);
+    }
+
+    const result = {
+      id: teacherData.id,
+      teacher_name: teacherData.teacher_name,
+      course_count: parseInt(teacherData.dataValues.course_count, 10),
+    };
+
+    
+    await client.setEx(`teacher:${id}:course_count`, JSON.stringify(result), 'EX', 300);
+
+    res.status(200).json(result);
+  } catch (err) {
+    console.error('Failed to fetch teacher course counts:', err);
+    res.status(err.statusCode || 500).json({
+      error: 'Failed to fetch teacher course counts',
+      message: err.message,
+    });
+  }
+});
+
+
+
+exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  await client.del(`course:${id}:lesson_count`);
+  // Validate input
+  const validationErrors = validateInput({ id });
+  if (validationErrors.length > 0) {
+    return res.status(400).json({ errors: validationErrors });
+  }
+  // Check Redis cache
+  const cachedData = await client.get(`course:${id}:lesson_count`);
+  if (cachedData) {
+    console.log('Serving from cache');
+    return res.status(200).json(JSON.parse(cachedData));
+  }
+
+  try {
+    // Fetch lesson count from the database
+    const lessonCountData = await Video.findAll({
+      where: { course_id: id },
+      attributes: [
+        'course_id',
+        [Sequelize.fn('COUNT', Sequelize.col('title')), 'lesson_count'],
+      ],
+      group: ['course_id'],
+      raw: true,
+    });
+
+    // If no lessons are found
+    if (!lessonCountData || lessonCountData.length === 0) {
+      console.warn('No lessons found');
+      return res.status(404).json({ message: 'No lessons found' });
+    }
+
+    const result = lessonCountData.map((entry) => ({
+      course_id: entry.course_id,
+      lesson_count: entry.lesson_count,
+    })); // Return result in array format
+
+    // Save to Redis cache with a 300-second expiration
+    await client.setEx(`course:${id}:lesson_count`, 300, JSON.stringify(result));
+
+    res.status(200).json(result); // Send response as an array
+  } catch (err) {
+    console.error('Failed to fetch lesson count for courses:', err);
+    res.status(500).json({
+      error: 'Failed to fetch lesson count for courses',
+      message: err.message,
+    });
+  }
+});

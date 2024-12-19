@@ -79,7 +79,6 @@ const courses = sequelize.define('courses', {
         type: DataTypes.STRING,
         allowNull: true,
         validate: {
-            // notEmpty: true,
             len: [1, 255]
         }
     },
