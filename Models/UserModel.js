@@ -35,6 +35,10 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true,
   },
+  mfa_secret:{
+    type: DataTypes.STRING(512),
+    allowNull:true
+  }
 }, {
   timestamps: false, 
 });

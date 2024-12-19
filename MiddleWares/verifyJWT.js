@@ -4,11 +4,13 @@ const User = require('../Models/UserModel.js');
 const dotenv=require('dotenv')
 const asyncHandler = require('../MiddleWares/asyncHandler.js')
 const { client } = require('../Utils/redisClient');
+
 const { ErrorResponse, validateInput } = require("../Utils/validateInput");
 const qr = require('qrcode');
-const speakeasy = require('speakeasy')
+
 
 dotenv.config();
+const qr = require('qrcode');
 
 
 
@@ -53,6 +55,7 @@ exports.register = asyncHandler(async (req, res) => {
   }
 
   try {
+
     const existingUser = await User.findOne({ where: { email } });
     if (existingUser) {
       return res.status(400).json({ message: 'Email already in use' });
@@ -96,6 +99,7 @@ exports.register = asyncHandler(async (req, res) => {
 
 
 
+
 const MAX_DEVICES = 2;
 const SECRET_KEY = process.env.JWT_SECRET;
 
@@ -108,16 +112,26 @@ exports.login = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: 'User not found' });
   }
 
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({
+        error: "Invalid password",
+        details: ["The password provided does not match the stored password."],
+      });
+    }
 
-  const validPassword = await bcrypt.compare(password, user.password);
-  if (!validPassword) {
-    return res.status(400).json({ message: 'Invalid password' });
-  }
+   
+    const verified = speakeasy.totp.verify({
+      secret: user.mfa_secret,
+      encoding: "base32",
+      token,
+    });
 
-  
-  if (user.mfa_secret) {
-    
-    const storedToken = await client.get(`user:${user.id}:mfa_token`);
+    if (!verified) {
+      return res.status(401).json({ message: "Invalid MFA token" });
+    }
+
+    const storedDeviceInfo = await client.get(`user:${user.id}:deviceInfo`);
 
    
     if (mfa_token !== storedToken) {
