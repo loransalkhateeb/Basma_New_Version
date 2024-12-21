@@ -133,7 +133,7 @@ exports.getSliderById = async (req, res) => {
       return res.status(404).json(ErrorResponse("Slider not found", [`No slider with ID: ${id}`]));
     }
 
-    res.status(200).json(slider);
+    res.status(200).json([slider]);
   } catch (error) {
     console.error("Error fetching slider by ID:", error.message);
     res.status(500).json(ErrorResponse("Error fetching slider by ID", [error.message]));

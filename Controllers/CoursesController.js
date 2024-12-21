@@ -1,26 +1,28 @@
-const { validateInput, ErrorResponse } = require('../Utils/validateInput');
-const Course = require('../Models/Courses.js');
-const Video = require('../Models/Videos.js');
+const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const Course = require("../Models/Courses.js");
+const Video = require("../Models/Videos.js");
 // const { sendEmailNotification } = require('../Utils/emailUtils');
-const { client } = require('../Utils/redisClient');
+const { client } = require("../Utils/redisClient");
 
-const CourseUsers = require('../Models/CourseUsers.js')
+const CourseUsers = require("../Models/CourseUsers.js");
 
-const {Sequelize} = require('../Config/dbConnect.js') 
+const { Sequelize } = require("../Config/dbConnect.js");
 
 const { type } = require("os");
 const asyncHandler = require("../MiddleWares/asyncHandler.js");
 
 const db = require("../Config/dbConnect.js");
-const ffmpeg = require('fluent-ffmpeg');
-require('dotenv').config();
-const path = require('path');
+const ffmpeg = require("fluent-ffmpeg");
+require("dotenv").config();
+const path = require("path");
 // const ffmpegPathw = process.env.FFMPEG_PATH
 
 // const ffmpegPath =  './ffmpeg/bin/ffmpeg-6.1-win-64/ffmpeg'
 // const ffprobePath = './ffmpeg/bin/ffprobe-6.1-win-64/ffprobe'
-const ffmpegPath = 'C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffmpeg';
-const ffprobePath = 'C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffprobe-6.1-win-64\\ffprobe';
+const ffmpegPath =
+  "C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffmpeg";
+const ffprobePath =
+  "C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffprobe-6.1-win-64\\ffprobe";
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
@@ -33,8 +35,8 @@ ffmpeg.setFfprobePath(ffprobePath);
 //   }
 // });
 
-const Teacher = require('../Models/TeacherModel.js');  
-const Department = require('../Models/DepartmentModel.js');  
+const Teacher = require("../Models/TeacherModel.js");
+const Department = require("../Models/DepartmentModel.js");
 
 // function getVideoDurationInSeconds(videoPath) {
 //   return new Promise((resolve, reject) => {
@@ -73,8 +75,6 @@ function formatDuration(seconds) {
 // function calculateTotalDuration(durations) {
 //   return durations.reduce((total, duration) => total + duration, 0);
 // }
-
-
 
 function calculateTotalDuration(durations) {
   return durations.reduce((total, duration) => total + duration, 0);
@@ -116,12 +116,16 @@ exports.addCourse = async (req, res) => {
     const titles = req.body["title"] || [];
     const links = req.body["link"] || [];
     const normalizedTitles = Array.isArray(titles) ? titles : [titles];
-    const normalizedLinks = Array.isArray(links) ? links : (links ? [links] : []);
+    const normalizedLinks = Array.isArray(links) ? links : links ? [links] : [];
 
     const img = req.files["img"] ? req.files["img"][0].filename : null;
-    const defaultvideo = req.files["defaultvideo"] ? req.files["defaultvideo"][0].filename : null;
+    const defaultvideo = req.files["defaultvideo"]
+      ? req.files["defaultvideo"][0].filename
+      : null;
     const videoFiles = req.files["url"] || [];
-    const file_book = req.files["file_book"] ? req.files["file_book"][0].filename : null;
+    const file_book = req.files["file_book"]
+      ? req.files["file_book"][0].filename
+      : null;
 
     // Create new course
     const newCourse = await Course.create({
@@ -136,7 +140,7 @@ exports.addCourse = async (req, res) => {
       teacher_id,
       img,
       defaultvideo,
-      file_book
+      file_book,
     });
 
     const courseId = newCourse.id;
@@ -144,34 +148,38 @@ exports.addCourse = async (req, res) => {
     // Process video files
     const videoFileData = videoFiles.map((file) => ({
       filename: file.filename,
-      type: 'file'
+      type: "file",
     }));
 
     const videoLinkData = normalizedLinks.map((link) => ({
       filename: link,
-      type: 'link'
+      type: "link",
     }));
 
     const videoData = [...videoFileData, ...videoLinkData];
 
-    const processedVideoData = await Promise.all(videoData.map(async (video) => {
-      if (video.type === 'file') {
-        const videoPath = `https://res.cloudinary.com/durjqlivi/video/upload/${video.filename}`
-        try {
-          const duration = await getVideoDurationInSeconds(videoPath);
-          return { ...video, duration, link: null };
-        } catch (err) {
-          console.error(`Error processing video ${video.filename}: ${err.message}`);
-          return { ...video, duration: 0, link: null }; // Handle error gracefully
+    const processedVideoData = await Promise.all(
+      videoData.map(async (video) => {
+        if (video.type === "file") {
+          const videoPath = `https://res.cloudinary.com/durjqlivi/video/upload/${video.filename}`;
+          try {
+            const duration = await getVideoDurationInSeconds(videoPath);
+            return { ...video, duration, link: null };
+          } catch (err) {
+            console.error(
+              `Error processing video ${video.filename}: ${err.message}`
+            );
+            return { ...video, duration: 0, link: null }; // Handle error gracefully
+          }
+        } else {
+          return { ...video, duration: 0, link: video.filename };
         }
-      } else {
-        return { ...video, duration: 0, link: video.filename };
-      }
-    }));
+      })
+    );
 
     // Calculate total video duration
     const totalDurationInSeconds = calculateTotalDuration(
-      processedVideoData.filter(v => v.type === 'file').map(v => v.duration)
+      processedVideoData.filter((v) => v.type === "file").map((v) => v.duration)
     );
     const formattedTotalDuration = formatDuration(totalDurationInSeconds);
 
@@ -179,10 +187,10 @@ exports.addCourse = async (req, res) => {
     const videoValues = processedVideoData.map((video, index) => [
       courseId,
       normalizedTitles[index] || "Untitled",
-      video.type === 'file' ? video.filename : '',
-      video.type === 'link' ? video.link : '',
+      video.type === "file" ? video.filename : "",
+      video.type === "link" ? video.link : "",
       video.type,
-      formatDuration(video.duration || 0)
+      formatDuration(video.duration || 0),
     ]);
 
     await Video.bulkCreate(
@@ -192,24 +200,25 @@ exports.addCourse = async (req, res) => {
         url,
         link,
         type,
-        duration
+        duration,
       }))
     );
 
     // Update total video duration in the course
     await newCourse.update({
-      total_video_duration: formattedTotalDuration || '0h 0m 0s' // Ensure it's not null
+      total_video_duration: formattedTotalDuration || "0h 0m 0s", // Ensure it's not null
     });
 
     res.status(201).json({
       message: "Course and videos added successfully",
-      totalDuration: formattedTotalDuration
+      totalDuration: formattedTotalDuration,
     });
   } catch (error) {
     console.error(error);
     res.status(500).json({
       error: "Failed to add course",
-      message: "An error occurred while adding the course. Please try again later."
+      message:
+        "An error occurred while adding the course. Please try again later.",
     });
   }
 };
@@ -227,7 +236,6 @@ exports.addCourse = async (req, res) => {
 //       teacher_id,
 //     } = req.body;
 
-  
 //     const errors = [];
 //     if (!subject_name || subject_name.length < 3) errors.push("Subject name is required and must be at least 3 characters.");
 //     if (!department_id) errors.push("Department ID is required.");
@@ -246,19 +254,16 @@ exports.addCourse = async (req, res) => {
 //       });
 //     }
 
-   
 //     const titles = req.body["title"] || [];
 //     const links = req.body["link"] || [];
 //     const normalizedTitles = Array.isArray(titles) ? titles : [titles];
 //     const normalizedLinks = Array.isArray(links) ? links : (links ? [links] : []);
 
-   
 //     const img = req.files["img"] ? req.files["img"][0].filename : null;
 //     const defaultvideo = req.files["defaultvideo"] ? req.files["defaultvideo"][0].filename : null;
 //     const videoFiles = req.files["url"] || [];
 //     const file_book = req.files["file_book"] ? req.files["file_book"][0].filename : null;
 
-    
 //     const newCourse = await Course.create({
 //       subject_name,
 //       department_id,
@@ -276,7 +281,6 @@ exports.addCourse = async (req, res) => {
 
 //     const courseId = newCourse.id;
 
-  
 //     const videoFileData = videoFiles.map((file) => ({
 //       filename: file.filename,
 //       type: 'file'
@@ -291,7 +295,7 @@ exports.addCourse = async (req, res) => {
 
 //     const processedVideoData = await Promise.all(videoData.map(async (video) => {
 //       if (video.type === 'file') {
-//         const videoPath = `./images/${video.filename}`; 
+//         const videoPath = `./images/${video.filename}`;
 //         const duration = await getVideoDurationInSeconds(videoPath);
 //         return {
 //           ...video,
@@ -307,13 +311,11 @@ exports.addCourse = async (req, res) => {
 //       }
 //     }));
 
-   
 //     const totalDurationInSeconds = calculateTotalDuration(
 //       processedVideoData.filter(v => v.type === 'file').map(v => v.duration)
 //     );
 //     const formattedTotalDuration = formatDuration(totalDurationInSeconds);
 
-   
 //     const videoValues = processedVideoData.map((video, index) => [
 //       courseId,
 //       normalizedTitles[index] || "Untitled",
@@ -334,12 +336,10 @@ exports.addCourse = async (req, res) => {
 //       }))
 //     );
 
-    
 //     await newCourse.update({
 //       total_video_duration: formattedTotalDuration
 //     });
 
-   
 //     res.status(201).json({
 //       message: "Course and videos added successfully",
 //       totalDuration: formattedTotalDuration
@@ -353,38 +353,55 @@ exports.addCourse = async (req, res) => {
 //   }
 // };
 
-
 exports.getcourses = async (req, res) => {
   try {
     const courses = await Course.findAll({
       include: [
-        { model: Department, attributes: ['title'] }
+        { model: Department, attributes: ["title"] },
+        { model: Teacher, attributes: ["teacher_name"] },
       ],
     });
     res.status(200).json(courses);
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to fetch courses", ["An error occurred while fetching the courses."])
-    );
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to fetch courses", [
+          "An error occurred while fetching the courses.",
+        ])
+      );
   }
 };
 
 exports.getCourseById = async (req, res) => {
   try {
     const { id } = req.params;
-    const course = await Course.findByPk(id);
+    const course = await Course.findByPk(id, {
+      include: [
+        { model: Department, attributes: ["title"] },
+        { model: Teacher, attributes: ["teacher_name","descr","img"] },
+      ],
+    });
     if (!course) {
-      return res.status(404).json(
-        ErrorResponse("Course not found", [`No course found with the given ID: ${id}`])
-      );
+      return res
+        .status(404)
+        .json(
+          ErrorResponse("Course not found", [
+            `No course found with the given ID: ${id}`,
+          ])
+        );
     }
     res.status(200).json([course]);
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to fetch course", ["An error occurred while fetching the course."])
-    );
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to fetch course", [
+          "An error occurred while fetching the course.",
+        ])
+      );
   }
 };
 
@@ -393,76 +410,180 @@ exports.deleteCourse = async (req, res) => {
     const { id } = req.params;
     const course = await Course.findByPk(id);
     if (!course) {
-      return res.status(404).json(
-        ErrorResponse("Course not found", [`No course found with the given ID: ${id}`])
-      );
+      return res
+        .status(404)
+        .json(
+          ErrorResponse("Course not found", [
+            `No course found with the given ID: ${id}`,
+          ])
+        );
     }
 
     await course.destroy();
     res.status(200).json({ message: "Course deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to delete course", ["An error occurred while deleting the course."])
-    );
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to delete course", [
+          "An error occurred while deleting the course.",
+        ])
+      );
   }
 };
-
 exports.getCourseVideos = async (req, res) => {
   try {
     const { id } = req.params;
-    const videos = await Video.findAll({ where: { course_id: id } });
+
+    const videos = await Video.findAll({
+      where: { course_id: id },
+      include: [
+        {
+          model: Course,
+          attributes: [
+            'subject_name',
+            'before_offer',
+            'after_offer',
+            'coupon',
+            'descr',
+            'img',
+            'defaultvideo',
+            'file_book',
+          ],
+          include: [
+            {
+              model: Department,
+              attributes: ['title'],
+            },
+            {
+              model: Teacher,
+              attributes: ['teacher_name'],
+            },
+          ],
+        },
+      ],
+    });
+
     res.status(200).json(videos);
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to fetch videos", ["An error occurred while fetching videos."])
-    );
+    res.status(500).json({
+      error: "Failed to fetch videos",
+      details: [
+        "An error occurred while fetching videos.",
+        error.message,
+      ],
+    });
   }
 };
 
-
-
-
-
+// exports.getCourseVideos = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const videos = await Video.findAll({ where: { course_id: id } ,
+//       include: [
+//         {
+//           model: Course,
+//           attributes: ['subject_name','before_offer','after_offer','coupon','descr','img','defaultvideo','file_book'],
+//         },
+//         {
+//           model: Department,
+//           attributes: ['title'],
+//         },
+//       ]});
+//     res.status(200).json(videos);
+//   } catch (error) {
+//     console.error(error);
+//     res
+//       .status(500)
+//       .json(
+//         ErrorResponse("Failed to fetch videos", [
+//           "An error occurred while fetching videos.",
+//         ])
+//       );
+//   }
+// };
 
 exports.deleteVideoById = async (req, res) => {
   try {
     const { id } = req.params;
     const video = await Video.findByPk(id);
     if (!video) {
-      return res.status(404).json(
-        ErrorResponse("Video not found", [`No video found with the given ID: ${id}`])
-      );
+      return res
+        .status(404)
+        .json(
+          ErrorResponse("Video not found", [
+            `No video found with the given ID: ${id}`,
+          ])
+        );
     }
 
     await video.destroy();
     res.status(200).json({ message: "Video deleted successfully" });
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to delete video", ["An error occurred while deleting the video."])
-    );
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to delete video", [
+          "An error occurred while deleting the video.",
+        ])
+      );
   }
 };
 
 exports.getByDepartmentAndTeacher = async (req, res) => {
   try {
-    const { department_id, teacher_email } = req.params;
+    const department_id = req.params.department_id;
+    const teacher_email = req.params.teacher_email;
+
     const courses = await Course.findAll({
-      where: {
-        department_id,
-        teacher_id: teacher_email
-      }
+      attributes: [
+        "id",
+        "subject_name",
+        "img",
+        [
+          Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'),
+          "created_at",
+        ],
+      ],
+      include: [
+        {
+          model: Department,
+          attributes: ["title"],
+          where: { id: department_id },
+        },
+        {
+          model: Teacher,
+          attributes: ["teacher_name", "email"],
+          where: { email: teacher_email },
+        },
+      ],
+      where: { department_id },
     });
-    res.status(200).json(courses);
+
+    if (courses.length === 0) {
+      return res
+        .status(404)
+        .json({
+          message: "No courses found for the given department and teacher.",
+        });
+    }
+
+    client.setEx(
+      `courses:${department_id}:${teacher_email}`,
+      600,
+      JSON.stringify(courses)
+    );
+
+    res.json(courses);
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to fetch courses by department and teacher", [
-        "An error occurred while fetching the courses."
-      ])
-    );
+    res.status(500).json({
+      message: "Failed to fetch courses by department and teacher",
+      error: error.message,
+    });
   }
 };
 
@@ -481,17 +602,32 @@ exports.updateCourse = async (req, res) => {
       teacher_id,
     } = req.body;
 
-    
-    const validationErrors = validateInput({ subject_name, department_id, before_offer, after_offer, coupon, descr, std_num, rating, teacher_id });
+    const validationErrors = validateInput({
+      subject_name,
+      department_id,
+      before_offer,
+      after_offer,
+      coupon,
+      descr,
+      std_num,
+      rating,
+      teacher_id,
+    });
     if (validationErrors.length > 0) {
-      return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
+      return res
+        .status(400)
+        .json(ErrorResponse("Validation failed", validationErrors));
     }
 
     const course = await Course.findByPk(id);
     if (!course) {
-      return res.status(404).json(
-        ErrorResponse("Course not found", [`No course found with the given ID: ${id}`])
-      );
+      return res
+        .status(404)
+        .json(
+          ErrorResponse("Course not found", [
+            `No course found with the given ID: ${id}`,
+          ])
+        );
     }
 
     await course.update({
@@ -508,18 +644,19 @@ exports.updateCourse = async (req, res) => {
 
     res.status(200).json({
       message: "Course updated successfully",
-      course
+      course,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json(
-      ErrorResponse("Failed to update course", ["An error occurred while updating the course."])
-    );
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to update course", [
+          "An error occurred while updating the course.",
+        ])
+      );
   }
 };
-
-
-
 
 exports.getUserCountForCourse = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -527,34 +664,44 @@ exports.getUserCountForCourse = asyncHandler(async (req, res) => {
 
   const cachedData = await client.get(`course:${id}:student_count`);
   if (cachedData) {
-    console.log('Serving from cache');
-    return res.status(200).json({ id, student_count: parseInt(cachedData, 10) });
+    console.log("Serving from cache");
+    return res
+      .status(200)
+      .json({ id, student_count: parseInt(cachedData, 10) });
   }
 
   try {
     const courseData = await Course.findOne({
       where: { id },
       attributes: [
-        'id',
-        [Sequelize.fn('COUNT', Sequelize.col('courseUsers.user_id')), 'student_count'], 
+        "id",
+        [
+          Sequelize.fn("COUNT", Sequelize.col("courseUsers.user_id")),
+          "student_count",
+        ],
       ],
       include: [
         {
           model: CourseUsers,
-          as: 'courseUsers', 
-          attributes: [],  
+          as: "courseUsers",
+          attributes: [],
         },
       ],
-      group: ['courses.id'],
+      group: ["courses.id"],
     });
 
     if (!courseData) {
-      throw new ErrorResponse('Course not found', 404);
+      throw new ErrorResponse("Course not found", 404);
     }
 
     const studentCount = parseInt(courseData.dataValues.student_count, 10);
 
-    await client.setEx(`course:${id}:student_count`, studentCount.toString(), 'EX', 300);
+    await client.setEx(
+      `course:${id}:student_count`,
+      studentCount.toString(),
+      "EX",
+      300
+    );
 
     res.status(200).json({
       id: courseData.id,
@@ -563,84 +710,67 @@ exports.getUserCountForCourse = asyncHandler(async (req, res) => {
   } catch (err) {
     // console.error('Failed to fetch user count for course:', err);
     res.status(err.statusCode || 500).json({
-      error: 'Failed to fetch user count for course',
+      error: "Failed to fetch user count for course",
       message: err.message,
     });
   }
 });
 
-
-
-
-
-
 exports.getCourseCountByTeacher = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  
   const validationErrors = validateInput({ id });
   if (validationErrors.length > 0) {
     return res.status(400).json({ errors: validationErrors });
   }
 
   try {
-   
     const teacherData = await Teacher.findOne({
       where: { id },
       attributes: [
-        'id',
-        'teacher_name',
-        
-        [Sequelize.fn('COUNT', Sequelize.col('courses.id')), 'course_count'],
+        "id",
+        "teacher_name",
+
+        [Sequelize.fn("COUNT", Sequelize.col("courses.id")), "course_count"],
       ],
       include: [
         {
-          model: Course, 
-          attributes: [], 
+          model: Course,
+          attributes: [],
         },
       ],
-      
-      group: ['teachers.id', 'teachers.teacher_name'], 
+
+      group: ["teachers.id", "teachers.teacher_name"],
     });
 
-    
     if (!teacherData) {
-      throw  ErrorResponse('Teacher not found', 404);
+      throw ErrorResponse("Teacher not found", 404);
     }
 
-    
-    const result = {
-      id: teacherData.id,
-      teacher_name: teacherData.teacher_name,
-      course_count: parseInt(teacherData.dataValues.course_count, 10),
-    };
+    const result = [
+      {
+        id: teacherData.id,
+        teacher_name: teacherData.teacher_name,
+        course_count: parseInt(teacherData.dataValues.course_count, 10),
+      },
+    ];
 
-    
     const cacheData = JSON.stringify(result);
-    if (typeof cacheData !== 'string') {
-      throw new TypeError('Invalid cache data');
+    if (typeof cacheData !== "string") {
+      throw new TypeError("Invalid cache data");
     }
 
-   
     await client.setEx(`teacher:${id}:course_count`, 300, cacheData);
 
-   
     res.status(200).json(result);
   } catch (err) {
-    console.error('Failed to fetch teacher course counts:', err);
+    console.error("Failed to fetch teacher course counts:", err);
     res.status(err.statusCode || 500).json({
-      error: 'Failed to fetch teacher course counts',
+      error: "Failed to fetch teacher course counts",
       message: err.message,
     });
   }
 });
-
-
-
-
-
-
-
 
 exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -653,7 +783,7 @@ exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
   // Check Redis cache
   const cachedData = await client.get(`course:${id}:lesson_count`);
   if (cachedData) {
-    console.log('Serving from cache');
+    console.log("Serving from cache");
     return res.status(200).json(JSON.parse(cachedData));
   }
 
@@ -662,17 +792,17 @@ exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
     const lessonCountData = await Video.findAll({
       where: { course_id: id },
       attributes: [
-        'course_id',
-        [Sequelize.fn('COUNT', Sequelize.col('title')), 'lesson_count'],
+        "course_id",
+        [Sequelize.fn("COUNT", Sequelize.col("title")), "lesson_count"],
       ],
-      group: ['course_id'],
+      group: ["course_id"],
       raw: true,
     });
 
     // If no lessons are found
     if (!lessonCountData || lessonCountData.length === 0) {
-      console.warn('No lessons found');
-      return res.status(404).json({ message: 'No lessons found' });
+      console.warn("No lessons found");
+      return res.status(404).json({ message: "No lessons found" });
     }
 
     const result = lessonCountData.map((entry) => ({
@@ -681,21 +811,21 @@ exports.getLessonCountForCourses = asyncHandler(async (req, res) => {
     })); // Return result in array format
 
     // Save to Redis cache with a 300-second expiration
-    await client.setEx(`course:${id}:lesson_count`, 300, JSON.stringify(result));
+    await client.setEx(
+      `course:${id}:lesson_count`,
+      300,
+      JSON.stringify(result)
+    );
 
     res.status(200).json(result); // Send response as an array
   } catch (err) {
     // console.error('Failed to fetch lesson count for courses:', err);
     res.status(500).json({
-      error: 'Failed to fetch lesson count for courses',
+      error: "Failed to fetch lesson count for courses",
       message: err.message,
     });
   }
 });
-
-
-
-
 
 exports.getByDepartment = async (req, res) => {
   try {
@@ -707,26 +837,33 @@ exports.getByDepartment = async (req, res) => {
       include: [
         {
           model: Department,
-          attributes: ['title'],
+          attributes: ["title"],
         },
+        { model: Teacher, attributes: ["teacher_name", "email"] },
       ],
       attributes: {
         include: [
-         
-          [Sequelize.fn('DATE_FORMAT', Sequelize.col('created_at'), '%Y-%m-%d'), 'created_date']
-        ]
-      }
+          [
+            Sequelize.fn(
+              "DATE_FORMAT",
+              Sequelize.col("created_at"),
+              "%Y-%m-%d"
+            ),
+            "created_date",
+          ],
+        ],
+      },
     });
 
-    
     if (!courses || courses.length === 0) {
-      return res.status(404).json({ message: 'No courses found for this department.' });
+      return res
+        .status(404)
+        .json({ message: "No courses found for this department." });
     }
 
     return res.json(courses);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Internal server error' });
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
-

@@ -71,7 +71,7 @@ exports.getpurchasesteps = async (req, res) => {
   
       if (data) {
     
-        return res.status(200).json(JSON.parse(data));
+        return res.status(200).json([JSON.parse(data)]);
       } else {
       
         const purchasestepsEntry = await Purchasesteps.findOne({

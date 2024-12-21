@@ -35,6 +35,7 @@ exports.addBoxSlider = async (req, res) => {
 
 exports.getBoxSliders = async (req, res) => {
   try {
+    await client.del("boxslider:all");
     
     const data = await client.get("boxslider:all");
 
@@ -63,11 +64,12 @@ exports.getBoxSliderById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    await client.del("boxslider:all");
   
     const data = await client.get(`boxslider:${id}`);
 
     if (data) {
-      return res.status(200).json(JSON.parse(data)); 
+      return res.status(200).json([JSON.parse(data)]); 
     } else {
  
       const boxSlider = await BoxSlider.findOne({

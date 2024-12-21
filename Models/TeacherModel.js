@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../Config/dbConnect');
 const departments = require('../Models/DepartmentModel');
-const Course = require('../Models/Courses');  // تأكد من استيراد Course هنا
+const Course = require('../Models/Courses'); 
 
 const teachers = sequelize.define('teachers', {
     id: {
