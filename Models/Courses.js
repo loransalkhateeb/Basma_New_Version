@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../Config/dbConnect');
 const department = require('../Models/DepartmentModel')
-const Teacher=require('./TeacherModel')
+
 const courses = sequelize.define('courses', {
     id: {
         type: DataTypes.INTEGER,
@@ -108,7 +108,6 @@ department.hasMany(courses, { foreignKey: 'department_id' });
 
 module.exports = courses;
 
-courses.belongsTo(Teacher, { foreignKey: 'teacher_id' }); 
-Teacher.hasMany(courses, { foreignKey: 'teacher_id' });
+
 module.exports = courses;
 

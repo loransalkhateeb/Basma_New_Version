@@ -6,6 +6,8 @@ const Course = require('../Models/Courses')
 const asyncHandler = require("../MiddleWares/asyncHandler");
 const Coupon = require('../Models/CouponsModel')
 const Sequelize = require('../Config/dbConnect')
+const { Op } = require('sequelize');
+
 
 exports.getDepartments = asyncHandler(async (req, res) => {
   
@@ -84,7 +86,7 @@ exports.updateStatusPayments = asyncHandler(async (req, res) => {
 });
 
 
-exports.buyDepartment = asyncHandler(async (req, res) => {
+exports.buyDepartment = async (req, res) => {
   const { student_name, email, address, phone, coupon_code, department_id, user_id } = req.body;
 
   if (!student_name || !email || !address || !phone || !coupon_code || !department_id || !user_id) {
@@ -93,61 +95,62 @@ exports.buyDepartment = asyncHandler(async (req, res) => {
 
   const currentDateTime = new Date();
 
-  
-  const coupon = await Coupon.findOne({
-    where: {
-      coupon_code,
-      expiration_date: { [Sequelize.Op.gt]: currentDateTime },
-      used: false,
-    },
-  });
+  try {
+    const coupon = await Coupon.findOne({
+      where: {
+        coupon_code,
+        expiration_date: { [Op.gt]: currentDateTime },
+        used: false,
+        coupon_type: 'department',
+      }
+    });
 
-  if (!coupon || coupon.coupon_type !== 'department') {
-    return res.status(400).json({ error: "Invalid or already used coupon" });
-  }
+    if (!coupon) {
+      return res.status(400).json({ error: "رمز الكوبون غير صالح أو تم استخدامه بالفعل" });
+    }
 
-  
-  const payment = await Payment.create({
-    student_name,
-    email,
-    address,
-    phone,
-    coupon_id: coupon.id,
-    department_id,
-    user_id,
-  });
-
-  
-  const courses = await Course.findAll({
-    attributes: ['id'],
-    where: { department_id },
-    raw: true,
-  });
-
-  if (courses.length === 0) {
-    return res.status(400).json({ error: "No courses found for this department" });
-  }
-
-  
-  await coupon.update({ used: true });
-
-  
-  const courseUserPromises = courses.map(course =>
-    CourseUser.create({
+   
+    const payment = await Payment.create({
+      student_name,
+      email,
+      address,
+      phone,
+      coupon_id: coupon.id,
+      department_id,
       user_id,
-      course_id: course.id,
-      payment_id: payment.id,
-    })
-  );
+    });
 
-  await Promise.all(courseUserPromises);
+    
+    const courses = await Course.findAll({
+      where: { department_id }
+    });
 
-  
-  await client.del('payments');
-  await client.del('departments');
+    if (courses.length === 0) {
+      return res.status(400).json({ error: "No courses found for this department" });
+    }
 
-  res.json({ message: "Department purchased successfully and courses unlocked" });
-});
+   
+    await coupon.update({ used: true });
+
+   
+    const courseUserPromises = courses.map(course => {
+      return CourseUser.create({
+        user_id,
+        course_id: course.id,
+        payment_id: payment.id
+      });
+    });
+
+    await Promise.all(courseUserPromises);
+
+    res.json({ message: "Department purchased successfully and courses unlocked" });
+
+  } catch (error) {
+    console.error("Error during department purchase:", error);
+    res.status(500).json({ error: "Database error" });
+  }
+};
+
 
 
 exports.getCourseUsers = asyncHandler(async (req, res) => {

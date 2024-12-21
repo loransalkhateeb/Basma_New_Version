@@ -5,6 +5,8 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 require('dotenv').config();
 const bodyParser = require('body-parser');
+
+
 const client = require('./Utils/redisClient'); 
 const AboutRoutes = require('./Routes/AboutRoutes');
 const AboutTeacher = require('./Routes/AboutTeacherRoutes');
@@ -23,7 +25,6 @@ const FAQRoutes = require('./Routes/FaqRoutes')
 const LibarryRoutes = require('./Routes/LibraryRoutes')
 const WhoWeAreRoutes = require('./Routes/WhoWeAresRoutes')
 const TagRoutes = require('./Routes/TagRoutes')
-
 const CouponsRoutes = require('./Routes/coponsRoutes')
 const TeacherRoutes = require('./Routes/TeacherRoutes')
 const UsersRoutes = require('./Routes/UserRouter')
@@ -54,13 +55,13 @@ app.use('/aboutTeacher', AboutTeacher);
 app.use('/availablecards', AvailableCards);
 app.use('/basmatrainning', BasmaTrainningRoutes);
 app.use('/blog', BlogsRoutes);
-app.use('/boxSlider', BoxUnderSliderRoutes);
+app.use('/boxSlider', BoxSliderRoutes);
+app.use('/BoxUnderSliders',BoxUnderSliderRoutes)
 app.use('/Sliders', SliderRoutes);
 app.use('/commentBlogs', CommentBlogRoutes);
 app.use('/Courses', CoursesRoutes);
 app.use('/departments',DepartmentsRoutes)
 app.use('/dynamicBlogs',DynamicBlogsRoutes)
-app.use('/BoxUnderSlider',BoxUnderSliderRoutes)
 app.use('/Comments',CommentsRoutes)
 app.use('/Fqs',FAQRoutes)
 app.use('/Libraries',LibarryRoutes)
@@ -90,7 +91,7 @@ process.on('SIGINT', () => {
   });
 });
 
-
+app.use(bodyParser.json());
 
 
 sequelize.sync({ force: false }).then(() => {
