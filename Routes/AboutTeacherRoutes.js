@@ -9,7 +9,7 @@ const rateLimiter = require("../MiddleWares/rateLimiter");
 router.get("/getaboutteacher", AboutTeacherController.getAboutTeacher);
 
 
-router.get("/getaboutteacher/:id", AboutTeacherController.getAboutTeacherById);
+router.get("/getAboutTeacherById/:id", AboutTeacherController.getAboutTeacherById);
 
 router.put(
   "/updateaboutTeacher/:id",

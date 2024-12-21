@@ -1,8 +1,9 @@
 const CommentBlog = require("../Models/CommentBlog");
 const Blog = require("../Models/BlogsModel");
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const asyncHandler = require("../MiddleWares/asyncHandler");
 const nodemailer = require("nodemailer");
-
+const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { client } = require('../Utils/redisClient');
 
 const transporter = nodemailer.createTransport({
   service: "gmail",
@@ -12,22 +13,56 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const sendEmailNotification = async (subject, content) => {
+  if (!process.env.NOTIFY_EMAIL) {
+    console.error("Error: No recipient email specified");
+    return;
+  }
 
-exports.addCommentBlog = async (req, res) => {
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: process.env.NOTIFY_EMAIL,
+    subject,
+    text: content,
+  };
+
   try {
-    const { name, email, comment, blog_id } = req.body;
+    await transporter.sendMail(mailOptions);
+  } catch (error) {
+    console.error("Error sending email:", error);
+  }
+};
 
+exports.addCommentBlog = asyncHandler(async (req, res) => {
+  try {
+    const { name, email, comment, blog_id } = req.body || {};
 
-    const validationErrors = validateInput({ name, email, comment, blog_id });
-    if (validationErrors.length > 0) {
-      return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
+    if (!name || !email || !comment || !blog_id) {
+      return res
+        .status(400)
+        .json(
+          ErrorResponse("Validation failed", [
+            "All fields are required. Please fill all fields",
+          ])
+        );
     }
 
- 
-    const blog = await Blog.findByPk(blog_id);
-    const blogTitle = blog ? blog.title : "Unknown Blog";
+    const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json(ErrorResponse("Validation failed", ["Invalid email address"]));
+    }
 
-  
+    const blog = await Blog.findByPk(blog_id);
+    if (!blog) {
+      return res.status(404).json(ErrorResponse("Blog not found", ["The specified blog does not exist"]));
+    }
+    const blogTitle = blog.title;
+
+    const cachedComment = await client.get(`comment:${blog_id}:${email}`);
+    if (cachedComment) {
+      return res.status(400).json(ErrorResponse("Duplicate comment", ["You have already commented on this blog"]));
+    }
+
     const newComment = await CommentBlog.create({
       name,
       email,
@@ -36,23 +71,12 @@ exports.addCommentBlog = async (req, res) => {
       action: "not approved",
     });
 
-  
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: "loransmahmoodalkhateeb@gmail.com",
-      subject: "تعليق جديد يتطلب الموافقة", 
-      html: `
-        <p>تم تقديم تعليق جديد ويتطلب موافقتك</p>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Comment:</strong> ${comment}</p>
-        <p><strong>Blog Name:</strong> ${blogTitle}</p>
-        <p>يرجى تسجيل الدخول إلى لوحة التحكم للموافقة على هذا التعليق أو رفضه:</p>
-        <p><a href="https://dashboard.kassel.icu/">https://dashboard.kassel.icu/</a></p>
-      `,
-    };
+    await client.setEx(`comment:${blog_id}:${email}`, 3600, JSON.stringify(newComment));
 
-    await transporter.sendMail(mailOptions);
+    sendEmailNotification(
+      "New Comment Submitted for Approval",
+      `A new comment has been submitted for the blog titled "${blogTitle}". Please review it in the admin dashboard.`
+    );
 
     res.status(201).json({
       message: "Comment added successfully and email sent to admin",
@@ -62,16 +86,15 @@ exports.addCommentBlog = async (req, res) => {
     console.error("Error adding comment:", error.message);
     res.status(500).json(ErrorResponse("Error adding comment", [error.message]));
   }
-};
+});
 
-
-exports.getCommentBlog = async (req, res) => {
+exports.getCommentBlog = asyncHandler(async (req, res) => {
   try {
     const comments = await CommentBlog.findAll({
       include: [
         {
           model: Blog,
-          attributes: ["title"], 
+          attributes: ["title"],
         },
       ],
     });
@@ -81,10 +104,9 @@ exports.getCommentBlog = async (req, res) => {
     console.error("Error fetching comments:", error.message);
     res.status(500).json(ErrorResponse("Error fetching comments", [error.message]));
   }
-};
+});
 
-
-exports.updateActionCommentBlogs = async (req, res) => {
+exports.updateActionCommentBlogs = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
     const { action } = req.body;
@@ -100,6 +122,8 @@ exports.updateActionCommentBlogs = async (req, res) => {
 
     await comment.update({ action });
 
+    await client.setEx(`comment:${id}`, 3600, JSON.stringify(comment));
+
     res.status(200).json({
       message: "Comment action updated successfully",
       data: comment,
@@ -108,10 +132,9 @@ exports.updateActionCommentBlogs = async (req, res) => {
     console.error("Error updating comment action:", error.message);
     res.status(500).json(ErrorResponse("Error updating comment action", [error.message]));
   }
-};
+});
 
-
-exports.deleteCommentBlog = async (req, res) => {
+exports.deleteCommentBlog = asyncHandler(async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -121,6 +144,7 @@ exports.deleteCommentBlog = async (req, res) => {
     }
 
     await comment.destroy();
+    await client.del(`comment:${id}`);
 
     res.status(200).json({
       message: "Comment deleted successfully",
@@ -129,4 +153,4 @@ exports.deleteCommentBlog = async (req, res) => {
     console.error("Error deleting comment:", error.message);
     res.status(500).json(ErrorResponse("Error deleting comment", [error.message]));
   }
-};
+});

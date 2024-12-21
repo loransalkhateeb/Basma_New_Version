@@ -538,6 +538,14 @@ exports.getByDepartmentAndTeacher = async (req, res) => {
     const department_id = req.params.department_id;
     const teacher_email = req.params.teacher_email;
 
+
+    
+    const courses = await Course.findAll({
+      attributes: [
+        'id',
+        'subject_name', 
+        [Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'), 'created_date'], 
+
     const courses = await Course.findAll({
       attributes: [
         "id",
@@ -547,10 +555,20 @@ exports.getByDepartmentAndTeacher = async (req, res) => {
           Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'),
           "created_at",
         ],
+
       ],
       include: [
         {
           model: Department,
+
+          attributes: ['title'], 
+          where: { id: department_id }, 
+        },
+        {
+          model: Teacher,
+          attributes: ['teacher_name'], 
+          where: { email: teacher_email }, 
+
           attributes: ["title"],
           where: { id: department_id },
         },
@@ -558,10 +576,22 @@ exports.getByDepartmentAndTeacher = async (req, res) => {
           model: Teacher,
           attributes: ["teacher_name", "email"],
           where: { email: teacher_email },
+
         },
       ],
       where: { department_id },
     });
+
+
+    
+    if (courses.length === 0) {
+      return res.status(404).json({ message: 'No courses found for the given department and teacher.' });
+    }
+
+    
+    client.setEx(`courses:${department_id}:${teacher_email}`, 600, JSON.stringify(courses));
+
+   
 
     if (courses.length === 0) {
       return res
@@ -577,11 +607,16 @@ exports.getByDepartmentAndTeacher = async (req, res) => {
       JSON.stringify(courses)
     );
 
+
     res.json(courses);
   } catch (error) {
     console.error(error);
     res.status(500).json({
+
+      message: 'Failed to fetch courses by department and teacher',
+
       message: "Failed to fetch courses by department and teacher",
+
       error: error.message,
     });
   }

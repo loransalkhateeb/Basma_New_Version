@@ -14,6 +14,11 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendEmailNotification = async (subject, content) => {
+  if (!process.env.NOTIFY_EMAIL) {
+    console.error("Error: No recipient email specified");
+    return;
+  }
+
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: process.env.NOTIFY_EMAIL,
@@ -28,22 +33,26 @@ const sendEmailNotification = async (subject, content) => {
   }
 };
 
+
+
 exports.createBlog = async (req, res) => {
   try {
     const { title, author, descr, department_id, tags } = req.body || {};
 
+    
     if (!title || !author || !descr || !department_id || !tags) {
       return res
         .status(400)
         .json(
           ErrorResponse("Validation failed", [
-            "The All Fields is required Please fiull all fields",
+            "The All Fields is required Please fill all fields",
           ])
         );
     }
 
     const img = req.file ? req.file.filename : null;
 
+ 
     const validationErrors = validateInput({
       title,
       author,
@@ -56,6 +65,8 @@ exports.createBlog = async (req, res) => {
         .status(400)
         .json(ErrorResponse("Validation failed", validationErrors));
     }
+
+    
     const newBlog = await Blog.create({
       title,
       author,
@@ -65,8 +76,11 @@ exports.createBlog = async (req, res) => {
       img,
     });
 
+    
+    sendEmailNotification("New Blog Created", `A new blog titled "${title}" has been created`);
+
     res.status(201).json({
-      message: "Blog  created successfully",
+      message: "Blog created successfully",
       Blog: newBlog,
     });
   } catch (error) {
@@ -75,11 +89,12 @@ exports.createBlog = async (req, res) => {
       .status(500)
       .json(
         ErrorResponse("Failed to create Blog", [
-          "An error occurred while creating the new Blog Please try again",
+          "An error occurred while creating the new Blog. Please try again",
         ])
       );
   }
 };
+
 exports.getAllBlogs = asyncHandler(async (req, res) => {
   try {
     const blogs = await Blog.findAll({
@@ -133,16 +148,11 @@ exports.getBlogById = asyncHandler(async (req, res) => {
 exports.updateBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, author, descr, department_id, tags } = req.body;
-  const img = req.files["img"] ? req.files["img"][0].filename : null;
 
-  if (!title || !author || !descr || !department_id || !img) {
-    return res
-      .status(400)
-      .json(
-        new ErrorResponse("Validation failed", [
-          "Please enter all the required fields.",
-        ])
-      );
+  
+  let img = null;
+  if (req.files && req.files["img"]) {
+    img = req.files["img"][0].filename;
   }
 
   const blog = await Blog.findByPk(id);
@@ -178,6 +188,7 @@ exports.updateBlog = asyncHandler(async (req, res) => {
   });
 });
 
+
 exports.deleteBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
@@ -197,11 +208,12 @@ exports.deleteBlog = asyncHandler(async (req, res) => {
     message: "Blog and associated tags deleted successfully",
   });
 });
- exports.getLastThreeBlogs=asyncHandler(async (req, res) => {
+
+exports.getLastThreeBlogs = asyncHandler(async (req, res) => {
   try {
     const blogs = await Blog.findAll({
-      order: [['createdAt', 'DESC']], 
-      limit: 3, 
+      order: [['createdAt', 'DESC']],
+      limit: 3,
     });
 
     res.status(200).json(blogs);
@@ -209,4 +221,4 @@ exports.deleteBlog = asyncHandler(async (req, res) => {
     console.error(error);
     res.status(500).json({ message: error.message });
   }
- })
+});

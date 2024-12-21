@@ -6,10 +6,9 @@ exports.addBoxSlider = async (req, res) => {
   try {
     const { title, descr } = req.body;
 
+   
     if (!title || !descr) {
-      return res
-        .status(400)
-        .json(ErrorResponse("Validation failed", ["Title and description are required"]));
+      return res.status(400).json(ErrorResponse("Validation failed", ["Title and description are required"]));
     }
 
     const validationErrors = validateInput({ title, descr });
@@ -17,10 +16,10 @@ exports.addBoxSlider = async (req, res) => {
       return res.status(400).json(new ErrorResponse("Validation failed", validationErrors));
     }
 
-    
+ 
     const newBoxSlider = await BoxSlider.create({ title, descr });
 
-  
+   
     await client.set(`boxslider:${newBoxSlider.id}`, JSON.stringify(newBoxSlider), { EX: 3600 });
 
     res.status(201).json({
@@ -35,21 +34,24 @@ exports.addBoxSlider = async (req, res) => {
 
 exports.getBoxSliders = async (req, res) => {
   try {
+
+ 
     await client.del("boxslider:all");
     
+
     const data = await client.get("boxslider:all");
 
     if (data) {
       return res.status(200).json(JSON.parse(data)); 
     } else {
-      
+     
       const boxSliders = await BoxSlider.findAll({
         attributes: ['id', 'title', 'descr'],
         order: [['id', 'DESC']], 
-        limit: 10,
+        limit: 10, 
       });
 
-     
+      
       await client.setEx("boxslider:all", 3600, JSON.stringify(boxSliders));
 
       res.status(200).json(boxSliders);
@@ -64,16 +66,20 @@ exports.getBoxSliderById = async (req, res) => {
   try {
     const { id } = req.params;
 
+
+   
+
     await client.del("boxslider:all");
   
+
     const data = await client.get(`boxslider:${id}`);
 
     if (data) {
       return res.status(200).json([JSON.parse(data)]); 
     } else {
- 
+      
       const boxSlider = await BoxSlider.findOne({
-        attributes: ['id', 'title', 'descr'], 
+        attributes: ['id', 'title', 'descr'],
         where: { id },
       });
 
@@ -81,7 +87,7 @@ exports.getBoxSliderById = async (req, res) => {
         return res.status(404).json(new ErrorResponse("BoxSlider not found", ["No BoxSlider found with the given id"]));
       }
 
-
+      
       await client.set(`boxslider:${id}`, JSON.stringify(boxSlider), { EX: 3600 });
 
       res.status(200).json(boxSlider);
@@ -97,6 +103,7 @@ exports.updateBoxSlider = async (req, res) => {
     const { id } = req.params;
     const { title, descr } = req.body;
 
+   
     const validationErrors = validateInput({ title, descr });
     if (validationErrors.length > 0) {
       return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
@@ -108,12 +115,13 @@ exports.updateBoxSlider = async (req, res) => {
       return res.status(404).json(ErrorResponse("BoxSlider not found", ["No BoxSlider found with the given id"]));
     }
 
+    
     boxSlider.title = title || boxSlider.title;
     boxSlider.descr = descr || boxSlider.descr;
 
     await boxSlider.save();
 
-   
+    
     await client.setEx(`boxslider:${id}`, 3600, JSON.stringify(boxSlider));
 
     res.status(200).json({

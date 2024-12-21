@@ -43,11 +43,9 @@ const AvailableCard = sequelize.define('AvailableCard', {
 
 Governorate.hasMany(AvailableCard, {
   foreignKey: 'governorate_id',
-  as: 'availableCards', // Alias for the association
 })
 AvailableCard.belongsTo(Governorate, {
   foreignKey: 'governorate_id',
-  as: 'governorate',
 });
 
 module.exports = AvailableCard;
