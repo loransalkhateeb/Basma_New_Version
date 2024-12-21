@@ -30,7 +30,7 @@ const Payment = sequelize.define('Payment', {
   },
   department_id: {
     type: DataTypes.INTEGER,
-    allowNull: false,
+    allowNull: true,
     references: {
       model: Department,
       key: 'id',

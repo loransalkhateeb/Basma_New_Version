@@ -64,6 +64,7 @@ exports.getAvailableCardById = async (req, res) => {
   try {
     const { id } = req.params;
 
+
     const cachedData = await client.get(`availableCard:${id}`);
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
@@ -71,11 +72,16 @@ exports.getAvailableCardById = async (req, res) => {
 
     const availableCard = await AvailableCards.findByPk(id, {
       include: [{ model: Governorate, attributes: ['governorate'] }]
+
+    const card = await AvailableCards.findByPk(id, {
+      include: [{ model: Governorate,as:"governorate", attributes: ['governorate'] }]
+
     });
 
     if (!availableCard) {
       return res.status(404).json( ErrorResponse("Available Card not found"));
     }
+
 
     await client.setEx(`availableCard:${id}`, 3600, JSON.stringify(availableCard));
 
@@ -83,6 +89,9 @@ exports.getAvailableCardById = async (req, res) => {
       message: "Available Card retrieved successfully",
       availableCard
     });
+
+    res.status(200).json([card]);
+
   } catch (error) {
     console.error(error);
     res.status(500).json( ErrorResponse("Failed to retrieve Available Card", ["An error occurred while retrieving the Available Card. Please try again"]));

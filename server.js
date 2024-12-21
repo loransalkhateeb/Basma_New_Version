@@ -34,6 +34,7 @@ const PaymentCourseRouter = require('./Routes/Payment-CourseRouter')
 const PurchaseStepsRoutes = require('./Routes/PurchaseStepsRoutes')
 const ContactRoutes = require('./Routes/ContactRoutes')
 const ProfileRoutes = require('./Routes/ProfileRoutes')
+const CommentCourseRoutes = require('./Routes/CommentCourseRoutes')
 const CoursesUsers = require('./Models/CourseUsers')
 
 
@@ -73,6 +74,7 @@ app.use('/users',UsersRoutes)
 app.use('/PaymentsDepartments',PaymentdepartmnetRouter)
 app.use('/PaymentsCourse',PaymentCourseRouter)
 app.use('/Coupons',CouponsRoutes)
+app.use('/commentCourse',CommentCourseRoutes)
 
 
 app.use('/purchasesteps',PurchaseStepsRoutes)

@@ -327,7 +327,26 @@ exports.getUserById = asyncHandler(async (req, res) => {
     }
   });
 
-
+  exports.getUserByRole = asyncHandler(async (req, res) => {
+    const userRole = req.params.role;
+  
+    try {
+      const users = await User.findAll({
+        where: { role: userRole }, // Specify the condition for filtering users by role
+        attributes: ['id', 'name', 'email', 'role', 'img'], // Specify the attributes to include in the response
+      });
+  
+      if (!users || users.length === 0) {
+        return res.status(404).json({ message: 'No users found for the specified role' });
+      }
+  
+      res.status(200).json(users);
+    } catch (err) {
+      console.error('Error fetching user:', err.message);
+      res.status(500).json({ message: 'Error fetching user', error: err.message });
+    }
+  });
+  
 
 
 

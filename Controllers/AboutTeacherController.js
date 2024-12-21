@@ -83,8 +83,7 @@ exports.getAboutTeacherById = async (req, res) => {
 
     res.status(200).json({
       message: "AboutTeacher retrieved successfully",
-      aboutTeacher
-    });
+      aboutTeacher: [aboutTeacher],  });
   } catch (error) {
     console.error(error);
     res.status(500).json(ErrorResponse("Failed to retrieve AboutTeacher"));

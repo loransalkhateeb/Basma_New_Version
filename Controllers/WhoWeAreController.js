@@ -65,7 +65,7 @@ exports.getWhoweareById = async (req, res) => {
     const data = await client.get(`whoweare:${id}`);
 
     if (data) {
-      return res.status(200).json(JSON.parse(data)); 
+      return res.status(200).json([JSON.parse(data)]); 
     } else {
       const whoweare = await Whoweare.findByPk(id, {
         attributes: ['id', 'title'],  

@@ -29,6 +29,8 @@ const Coupon = sequelize.define('Coupon', {
       model: 'department',
       key: 'id',
     },
+    onDelete: 'SET NULL', // Set to NULL if the related department is deleted
+    onUpdate: 'CASCADE',
   },
   course_id: {
     type: DataTypes.INTEGER,
@@ -37,6 +39,8 @@ const Coupon = sequelize.define('Coupon', {
       model: 'courses',
       key: 'id',
     },
+    onDelete: 'SET NULL', // Set to NULL if the related department is deleted
+    onUpdate: 'CASCADE',
   },
   used: {
     type: DataTypes.BOOLEAN,

@@ -103,7 +103,11 @@ exports.updateAbout = async (req, res) => {
     aboutEntry.img = image || aboutEntry.img;
 
     await aboutEntry.save();
+
     await client.setEx(`about:${id}`, 3600, JSON.stringify(aboutEntry));
+
+
+    client.setEx(`about:${id}`, 3600, JSON.stringify(aboutEntry));
 
     res.status(200).json({
       message: "About entry updated successfully",
