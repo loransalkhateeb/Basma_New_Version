@@ -3,6 +3,7 @@ const { client } = require('../Utils/redisClient');
 const asyncHandler = require("../MiddleWares/asyncHandler");
 
 
+const Sequelize = require('../Config/dbConnect')
 
 const Course = require('../Models/Courses')
 const Coupon = require('../Models/CouponsModel')
@@ -87,7 +88,7 @@ exports.buyCourse = asyncHandler(async (req, res, next) => {
     }
 
     
-    const transaction = await sequelize.transaction();
+    const transaction = await Sequelize.transaction();
     try {
       const payment = await Payment.create({
         student_name,

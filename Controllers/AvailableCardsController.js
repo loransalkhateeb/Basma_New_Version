@@ -65,14 +65,14 @@ exports.getAvailableCardById = async (req, res) => {
     const { id } = req.params;
 
     const card = await AvailableCards.findByPk(id, {
-      include: [{ model: Governorate, attributes: ['governorate'] }]
+      include: [{ model: Governorate,as:"governorate", attributes: ['governorate'] }]
     });
 
     if (!card) {
       return res.status(404).json(new ErrorResponse('Card not found', ['No card found with the given ID']));
     }
 
-    res.status(200).json(card);
+    res.status(200).json([card]);
   } catch (error) {
     console.error(error);
     res.status(500).json(new ErrorResponse('Failed to retrieve available card', ['An error occurred while retrieving the card']));

@@ -10,6 +10,7 @@ router.post('/addCoupon', rateLimiter, CouponController.addCoupon);
 
 
 router.get('/getCoupons', rateLimiter, CouponController.getCoupon);
+router.get('/getCoupons/:id', rateLimiter, CouponController.getCouponById);
 
 
 router.get('/getCouponByCode/:coupon_code', rateLimiter, CouponController.getCouponByCode);

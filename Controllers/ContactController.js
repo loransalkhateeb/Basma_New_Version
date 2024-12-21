@@ -89,7 +89,7 @@ exports.getcontactus = async (req, res) => {
       const data = await client.get(`contact:${id}`);
   
       if (data) {
-        return res.status(200).json(JSON.parse(data)); 
+        return res.status(200).json([JSON.parse(data)]); 
       } else {
         const contact = await Contact.findOne({
           attributes:['id', 'title', 'descr','phone','email', 'facebook', 'whatsup'],

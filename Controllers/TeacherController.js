@@ -6,6 +6,7 @@ const ffmpeg = require('fluent-ffmpeg');
 const Department = require('../Models/DepartmentModel')
 const Course = require('../Models/Courses')
 const Video = require('../Models/Videos')
+const {Sequelize} = require('../Config/dbConnect.js') 
 
 exports.addTeacherAndCourses = asyncHandler(async (req, res, next) => {
     const { teacher_name, descr, email, department_id } = req.body;
@@ -329,55 +330,106 @@ function formatDuration(seconds) {
 
 
 
-exports.getTeacherCourseById = asyncHandler(async (req, res, next) => {
-    const { id } = req.params;
+// exports.getTeacherCourseById = asyncHandler(async (req, res, next) => {
+//     const { id } = req.params;
   
     
-    const cachedData = await client.get(`teacher_courses_${id}`);
-    if (cachedData) {
-      return res.status(200).json(JSON.parse(cachedData));
-    }
+//     const cachedData = await client.get(`teacher_courses_${id}`);
+//     if (cachedData) {
+//       return res.status(200).json(JSON.parse(cachedData));
+//     }
   
-    try {
+//     try {
      
-      const teacherCourses = await Course.findAll({
-        where: {
-          teacher_id: id,
-        },
-        include: [
-          {
-            model: Department,
-            attributes: ['title'], 
-          },
-          {
-            model: Teacher,
-            attributes: ['teacher_name'],
-          },
-        ],
-      });
+//       const teacherCourses = await Course.findAll({
+//         where: {
+//           teacher_id: id,
+//         },
+//         include: [
+//           {
+//             model: Department,
+//             attributes: ['title'], 
+//           },
+//           {
+//             model: Teacher,
+//             attributes: ['teacher_name'],
+//           },
+//         ],
+//       });
   
     
-      if (!teacherCourses || teacherCourses.length === 0) {
-        return res.status(404).json({
-          message: "No courses found for this teacher"
-        });
-      }
+//       if (!teacherCourses || teacherCourses.length === 0) {
+//         return res.status(404).json({
+//           message: "No courses found for this teacher"
+//         });
+//       }
   
      
-      await client.setex(`teacher_courses_${id}`, 3600, JSON.stringify(teacherCourses));
+//       await client.setex(`teacher_courses_${id}`, 3600, JSON.stringify(teacherCourses));
   
      
-      return res.status(200).json(teacherCourses);
-    } catch (err) {
-      console.error('Error fetching course data: ' + err.message);
+//       return res.status(200).json(teacherCourses);
+//     } catch (err) {
+//       console.error('Error fetching course data: ' + err.message);
       
-      return res.status(500).json({
-        error: "Error fetching course data",
-        message: err.message,
-      });
-    }
-});
+//       return res.status(500).json({
+//         error: "Error fetching course data",
+//         message: err.message,
+//       });
+//     }
+// });
 
+exports.getTeacherCoursesByEmail = asyncHandler(async (req, res, next) => {
+  const { teacherEmail } = req.params;
+
+  // Clear cache for teacher courses
+  await client.del("teacher_courses:all");
+
+  // Check for cached data
+  const cachedData = await client.get(`teacher_courses_${teacherEmail}`);
+  if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
+  }
+
+  try {
+      // Fetch courses by teacher email
+      const teacherCourses = await Course.findAll({
+          include: [
+              {
+                  model: Department,
+                  attributes: ['title'], 
+              },
+              {
+                  model: Teacher,
+                  attributes: ['teacher_name', 'email'], // Ensure the email field is included in the Teacher model
+                  where: {
+                      email: teacherEmail, // Match the teacher email
+                  },
+              },
+          ],
+      });
+
+      // Check if courses were found
+      if (!teacherCourses || teacherCourses.length === 0) {
+          return res.status(404).json({
+              message: "No courses found for this teacher",
+          });
+      }
+
+      // Cache the data for future requests
+      await client.setEx(`teacher_courses_${teacherEmail}`, 3600, JSON.stringify(teacherCourses));
+
+      // Return the fetched data
+      return res.status(200).json(teacherCourses);
+  } catch (err) {
+      console.error("Error fetching course data: " + err.message);
+
+      return res.status(500).json({
+          error: "Error fetching course data",
+          message: err.message,
+      });
+  }
+});
 
 
 
@@ -528,7 +580,7 @@ exports.getStudentCountForTeacher = asyncHandler(async (req, res, next) => {
       const result = await Teacher.findOne({
         attributes: [
           'id',
-          [sequelize.fn('COUNT', sequelize.col('teacher_students.student_id')), 'student_count']
+          [Sequelize.fn('COUNT', Sequelize.col('teacher_students.student_id')), 'student_count']
         ],
         include: {
           model: TeacherStudent,

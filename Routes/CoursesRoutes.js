@@ -13,7 +13,7 @@ router.post('/addCourse',
   ]), rateLimit,CoursesController.addCourse);
 
 router.get('/',rateLimit, CoursesController.getcourses);
-router.get('/:id',rateLimit, CoursesController.getCourseById);
+router.get('/details/:id',rateLimit, CoursesController.getCourseById);
 router.delete('/delete/:id',rateLimit, CoursesController.deleteCourse);
 router.get('/videos/:id',rateLimit, CoursesController.getCourseVideos);
 router.delete('/videos/:id',rateLimit, CoursesController.deleteVideoById);

@@ -70,12 +70,12 @@ router.get('/getTeacherById/:id',
   TeacherController.getTeacherById
 );
 
-router.get('/teachercourse/:id', 
+router.get('/teachercourse/:teacherEmail', 
   rateLimiter, 
-  TeacherController.getTeacherCourseById
+  TeacherController.getTeacherCoursesByEmail
 );
 
-router.get('/teacher-course/:id', 
+router.get('/teacher-course/:teacherEmail', 
   rateLimiter, 
   TeacherController.getTeacheridandCourseById
 );
