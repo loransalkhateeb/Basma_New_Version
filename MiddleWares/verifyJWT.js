@@ -161,190 +161,190 @@ const sendVerificationCode = async (email, mfaCode) => {
 const blockedIps = new Set();
 const failedAttempts = {};
 
-exports.login = async (req, res) => {
-  const { email, password, mfaCode, ip } = req.body;
-  const clientIp = ip || req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
-
-  console.log(`Attempted login from IP: ${clientIp}`);
-
-  if (blockedIps.has(clientIp)) {
-    console.log(`Blocked IP: ${clientIp}. Access denied.`);
-    return res.status(403).send("Your IP is blocked due to too many failed login attempts.");
-  }
-
-  const geo = geoip.lookup(clientIp);
-  console.log(`GeoIP Lookup for IP: ${clientIp}`, geo);
-
-  // if (!geo || geo.country !== "JO") {
-  //   console.log(`Access denied for non-Jordan IP: ${clientIp}`);
-  //   return res.status(403).send("Access is restricted to Jordan IPs only.");
-  // }
-
-  try {
-    const user = await User.findOne({ where: { email } });
-    if (!user) {
-      failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
-      console.log(`Failed attempts for ${clientIp}: ${failedAttempts[clientIp]}`);
-
-      if (failedAttempts[clientIp] >= 5) {
-        blockedIps.add(clientIp);
-        console.log(`IP ${clientIp} has been blocked due to too many failed attempts.`);
-      }
-
-      await AuditLog.create({
-        action: "Failed Login",
-        details: `Failed login attempt with email: ${email} (User not found)`,
-      });
-      return res.status(400).send("User not found");
-    }
-
-    const isMatch = await argon2.verify(user.password, password); 
-    
-    if (!isMatch) {
-      failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
-      console.log(`Failed attempts for ${clientIp}: ${failedAttempts[clientIp]}`);
-
-      if (failedAttempts[clientIp] >= 5) {
-        blockedIps.add(clientIp);
-        console.log(`IP ${clientIp} has been blocked due to too many failed attempts.`);
-      }
-
-      await AuditLog.create({
-        action: "Failed Login",
-        details: `Failed login attempt for user: ${email} (Invalid password)`,
-      });
-      return res.status(400).send("Invalid password");
-    }
-
-    if (!mfaCode) {
-      mfaCodeMemory = Math.floor(100000 + Math.random() * 900000);
-      mfaCodeExpiration = Date.now() + 5 * 60 * 1000;
-
-      await sendVerificationCode(email, mfaCodeMemory);
-
-      return res.status(200).send(
-        "MFA code has been sent to your email. Please enter the code to complete login."
-      );
-    }
-
-    if (Date.now() > mfaCodeExpiration) {
-      return res.status(400).send("MFA code has expired");
-    }
-
-    if (String(mfaCode) !== String(mfaCodeMemory)) {
-      await AuditLog.create({
-        action: "Failed MFA Verification",
-        details: `Failed MFA verification for user: ${email} from IP: ${clientIp}`,
-      });
-      return res.status(400).send("Invalid MFA code");
-    }
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role, name: user.name, img: user.img },
-      SECRET_KEY,
-      { expiresIn: "20m" }
-    );
-
-    await AuditLog.create({
-      action: "Successful Login",
-      details: `Login successful for user: ${email} from IP: ${clientIp}`,
-    });
-
-    delete failedAttempts[clientIp];
-
-    return res.status(200).json({
-      message: "Login successful",
-      token,
-      name: user.name,
-      role: user.role,
-      id: user.id,
-      img: user.img,
-    });
-  } catch (err) {
-    console.error("Error during login process:", err);
-    await AuditLog.create({
-      action: "Login Error",
-      details: `Error during login for email: ${email} from IP: ${clientIp}. Error: ${err.message}`,
-    });
-    res.status(500).send({ message: "Internal Server Error", error: err.message });
-  }
-};
-
-
 // exports.login = async (req, res) => {
-//   const { email, password, deviceInfo } = req.body;
+//   const { email, password, mfaCode, ip } = req.body;
+//   const clientIp = ip || req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
 
-//   if (!deviceInfo) return res.status(400).send('Device information is required');
+//   console.log(`Attempted login from IP: ${clientIp}`);
+
+//   if (blockedIps.has(clientIp)) {
+//     console.log(`Blocked IP: ${clientIp}. Access denied.`);
+//     return res.status(403).send("Your IP is blocked due to too many failed login attempts.");
+//   }
+
+//   const geo = geoip.lookup(clientIp);
+//   console.log(`GeoIP Lookup for IP: ${clientIp}`, geo);
+
+//   if (!geo || geo.country !== "JO") {
+//     console.log(`Access denied for non-Jordan IP: ${clientIp}`);
+//     return res.status(403).send("Access is restricted to Jordan IPs only.");
+//   }
 
 //   try {
 //     const user = await User.findOne({ where: { email } });
-//     if (!user) return res.status(400).send('User not found');
+//     if (!user) {
+//       failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
+//       console.log(`Failed attempts for ${clientIp}: ${failedAttempts[clientIp]}`);
 
-//     const isMatch = await bcrypt.compare(password, user.password);
-//     if (!isMatch) return res.status(400).send('Invalid password');
-
-//     // Retrieve stored device info
-//     const storedDeviceInfo = await User.getDeviceInfo(user.id);
-
-//     if (!storedDeviceInfo) {
-//       // If no device info is stored
-//       if (user.role === 'student') {
-//         // For students, store the device info
-//         await User.updateDeviceInfo(user.id, deviceInfo);
-//         return res.status(200).json({
-//           message: 'تم حفظ معلومات جهازك. سوف تكون قادر على تسجيل الدخول فقط من هذا الجهاز',
-//           token: jwt.sign(
-//             { id: user.id, role: user.role, name: user.name, img: user.img },
-//             SECRET_KEY,
-//             { expiresIn: '1h' }
-//           ),
-//           name: user.name,
-//           role: user.role,
-//           id: user.id,
-//           img: user.img
-//         });
-//       } else {
-//         // For non-students, do not store device info
-//         return res.status(200).json({
-//           message: 'تم تسجيل الدخول بنجاح.',
-//           token: jwt.sign(
-//             { id: user.id, role: user.role, name: user.name, img: user.img },
-//             SECRET_KEY,
-//             { expiresIn: '1h' }
-//           ),
-//           name: user.name,
-//           role: user.role,
-//           id: user.id,
-//           img: user.img
-//         });
-//       }
-//     } else {
-//       // Compare stored device info with incoming device info
-//       if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
-//         return res.status(403).json({
-//           message: 'Login not allowed from this device'
-//         });
+//       if (failedAttempts[clientIp] >= 5) {
+//         blockedIps.add(clientIp);
+//         console.log(`IP ${clientIp} has been blocked due to too many failed attempts.`);
 //       }
 
-//       // Generate JWT token for matching device info
-//       const token = jwt.sign(
-//         { id: user.id, role: user.role, name: user.name, img: user.img },
-//         SECRET_KEY,
-//         { expiresIn: '1h' }
-//       );
-
-//       return res.status(200).json({
-//         token,
-//         name: user.name,
-//         role: user.role,
-//         id: user.id,
-//         img: user.img
+//       await AuditLog.create({
+//         action: "Failed Login",
+//         details: `Failed login attempt with email: ${email} (User not found)`,
 //       });
+//       return res.status(400).send("User not found");
 //     }
+
+//     const isMatch = await argon2.verify(user.password, password); 
+    
+//     if (!isMatch) {
+//       failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
+//       console.log(`Failed attempts for ${clientIp}: ${failedAttempts[clientIp]}`);
+
+//       if (failedAttempts[clientIp] >= 5) {
+//         blockedIps.add(clientIp);
+//         console.log(`IP ${clientIp} has been blocked due to too many failed attempts.`);
+//       }
+
+//       await AuditLog.create({
+//         action: "Failed Login",
+//         details: `Failed login attempt for user: ${email} (Invalid password)`,
+//       });
+//       return res.status(400).send("Invalid password");
+//     }
+
+//     if (!mfaCode) {
+//       mfaCodeMemory = Math.floor(100000 + Math.random() * 900000);
+//       mfaCodeExpiration = Date.now() + 5 * 60 * 1000;
+
+//       await sendVerificationCode(email, mfaCodeMemory);
+
+//       return res.status(200).send(
+//         "MFA code has been sent to your email. Please enter the code to complete login."
+//       );
+//     }
+
+//     if (Date.now() > mfaCodeExpiration) {
+//       return res.status(400).send("MFA code has expired");
+//     }
+
+//     if (String(mfaCode) !== String(mfaCodeMemory)) {
+//       await AuditLog.create({ 
+//         action: "Failed MFA Verification",
+//         details: `Failed MFA verification for user: ${email} from IP: ${clientIp}`,
+//       });
+//       return res.status(400).send("Invalid MFA code");
+//     }
+
+//     const token = jwt.sign(
+//       { id: user.id, role: user.role, name: user.name, img: user.img },
+//       SECRET_KEY,
+//       { expiresIn: "20m" }
+//     );
+
+//     await AuditLog.create({
+//       action: "Successful Login",
+//       details: `Login successful for user: ${email} from IP: ${clientIp}`,
+//     });
+
+//     delete failedAttempts[clientIp];
+
+//     return res.status(200).json({
+//       message: "Login successful",
+//       token,
+//       name: user.name,
+//       role: user.role,
+//       id: user.id,
+//       img: user.img,
+//     });
 //   } catch (err) {
-//     res.status(500).send(err.message);
+//     console.error("Error during login process:", err);
+//     await AuditLog.create({
+//       action: "Login Error",
+//       details: `Error during login for email: ${email} from IP: ${clientIp}. Error: ${err.message}`,
+//     });
+//     res.status(500).send({ message: "Internal Server Error", error: err.message });
 //   }
 // };
+
+
+exports.login = async (req, res) => {
+  const { email, password, deviceInfo } = req.body;
+
+  if (!deviceInfo) return res.status(400).send('Device information is required');
+
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (!user) return res.status(400).send('User not found');
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).send('Invalid password');
+
+    // Retrieve stored device info
+    const storedDeviceInfo = await User.getDeviceInfo(user.id);
+
+    if (!storedDeviceInfo) {
+      // If no device info is stored
+      if (user.role === 'student') {
+        // For students, store the device info
+        await User.updateDeviceInfo(user.id, deviceInfo);
+        return res.status(200).json({
+          message: 'تم حفظ معلومات جهازك. سوف تكون قادر على تسجيل الدخول فقط من هذا الجهاز',
+          token: jwt.sign(
+            { id: user.id, role: user.role, name: user.name, img: user.img },
+            SECRET_KEY,
+            { expiresIn: '1h' }
+          ),
+          name: user.name,
+          role: user.role,
+          id: user.id,
+          img: user.img
+        });
+      } else {
+        // For non-students, do not store device info
+        return res.status(200).json({
+          message: 'تم تسجيل الدخول بنجاح.',
+          token: jwt.sign(
+            { id: user.id, role: user.role, name: user.name, img: user.img },
+            SECRET_KEY,
+            { expiresIn: '1h' }
+          ),
+          name: user.name,
+          role: user.role,
+          id: user.id,
+          img: user.img
+        });
+      }
+    } else {
+      // Compare stored device info with incoming device info
+      if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
+        return res.status(403).json({
+          message: 'Login not allowed from this device'
+        });
+      }
+
+      // Generate JWT token for matching device info
+      const token = jwt.sign(
+        { id: user.id, role: user.role, name: user.name, img: user.img },
+        SECRET_KEY,
+        { expiresIn: '1h' }
+      );
+
+      return res.status(200).json({
+        token,
+        name: user.name,
+        role: user.role,
+        id: user.id,
+        img: user.img
+      });
+    }
+  } catch (err) {
+    res.status(500).send(err.message);
+  }
+};
 
 
 

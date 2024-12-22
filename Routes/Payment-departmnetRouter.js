@@ -5,7 +5,7 @@ const departmentController = require('../Controllers/PaymentdepartmentController
 router.get('/departments', departmentController.getDepartments);
 router.post('/buy', departmentController.buyDepartment);
 router.get('/get', departmentController.getPayments);
-router.get('/getcourseusers', departmentController.getCourseUsers);
+router.get('/getpaymentdata', departmentController.getPaymentData);
 router.get('/getallcourseusers', departmentController.getCourseUsers);
 router.put('/payments/:id/approve', departmentController.updateStatusPayments);
 router.delete('/delete/payments/:payment_id', departmentController.deleteCourseUsers);

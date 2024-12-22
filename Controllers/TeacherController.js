@@ -811,7 +811,7 @@ exports.deleteTeacherCourse = asyncHandler(async (req, res) => {
       return res.status(400).json({ error: "Course ID is required" });
     }
   
-    const transaction = await sequelize.transaction();
+    const transaction = await Sequelize.transaction();
   
     try {
       

@@ -27,9 +27,9 @@ router.put('/:id',
   ]), rateLimit,CoursesController.updateCourse);
 
 
-  router.get('/users-counts/:id',rateLimit, CoursesController.getUserCountForCourse);
+  router.get('/users-counts/:id', CoursesController.getUserCountForCourse);
   router.get('/course-counts/:id',rateLimit, CoursesController.getCourseCountByTeacher);
-  router.get('/lesson-counts/:id',rateLimit, CoursesController.getLessonCountForCourses);
+  router.get('/lesson-counts/:id', CoursesController.getLessonCountForCourses);
   router.get('/getbydep/:id',rateLimit, CoursesController.getByDepartment);
 
 

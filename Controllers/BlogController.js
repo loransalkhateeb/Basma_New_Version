@@ -4,7 +4,6 @@ const Department = require("../Models/DepartmentModel");
 const asyncHandler = require("../MiddleWares/asyncHandler");
 const nodemailer = require("nodemailer");
 const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
-const { client } = require("../Utils/redisClient");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",

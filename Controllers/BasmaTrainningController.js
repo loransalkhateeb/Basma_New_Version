@@ -29,6 +29,7 @@ exports.createBasmaTraining = async (req, res) => {
   }
 };
 
+
 exports.getAllBasmaTraining = async (req, res) => {
   try {
     const cachedData = await client.get('basmaTrainings:all');
