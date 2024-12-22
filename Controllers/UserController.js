@@ -4,6 +4,7 @@ const { ErrorResponse, validateInput } = require("../Utils/ValidateInput");
 const asyncHandler = require('../MiddleWares/asyncHandler')
 const User = require('../Models/UserModel')
 
+const TeacherStudent = require('../Models/Teacher_StudentModel')
 
 const { Op } = require("sequelize");
 const course_users = require('../Models/course_users');
@@ -160,71 +161,37 @@ exports.findById = async (id) => {
     }
   };
 
-
-  exports.deleteStudent = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-  
+  exports.deleteStudent = async (req, res) => {
     try {
-      
-        const cacheKey = `student:${id}`;
-      const cachedStudent = await new Promise((resolve, reject) => {
-        client.get(cacheKey, (err, data) => {
-          if (err) return reject(err);
-          resolve(data ? JSON.parse(data) : null);
-        });
-      });
+      const { id } = req.params;
   
-      if (cachedStudent) {
-       
-        client.del(cacheKey); 
-          }
-  
-      
-      
-      await Promise.all([
-        
-        CourseUser.destroy({
-          where: { user_id: id },
-          individualHooks: true 
-        }),
-  
-       
-        TeacherStudent.destroy({
-          where: { student_id: id },
-          individualHooks: true 
-        }),
-  
-        
-        Payment.destroy({
-          where: { user_id: id },
-          individualHooks: true 
-        }),
-  
-        
-        User.destroy({
-          where: { id, role: 'student' }
-        })
-      ]);
-  
-      
-      const deletedStudent = await User.findOne({
-        where: { id, role: 'student' }
-      });
-  
-      if (!deletedStudent) {
-        return res.status(404).json({ message: "Student not found" });
+     
+      const student = await User.findOne({ where: { id, role: 'Student' } });
+      if (!student) {
+        return res.status(404).json( ErrorResponse("Student not found", ["No student found with the given id"]));
       }
   
       
-      client.del(cacheKey);
+      const cacheKey = `student:${id}`;
+      await client.del(cacheKey);
   
-      return res.json({ message: "Student and related records deleted successfully" });
+     
+      await Promise.all([
+        course_users.destroy({ where: { user_id: id } }),
+        teachers.destroy({ where: { id: id } }),
+        Payment.destroy({ where: { user_id: id } }),
+        student.destroy() 
+      ]);
+  
+      
+      await client.del(cacheKey);
+  
+      res.status(200).json({ message: "The Student and related records deleted successfully" });
     } catch (error) {
-      console.error("Error in deleting student:", error);
-      return res.status(500).json({ message: "Error deleting student and related records" });
+      console.error(error);
+      res.status(500).json( ErrorResponse("Failed to delete Student", ["An error occurred while deleting the student and related records"]));
     }
-  });
-
+  };
 
 
   exports.deleteAdmin = async (req, res) => {

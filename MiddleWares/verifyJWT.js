@@ -64,6 +64,9 @@ exports.register = asyncHandler(async (req, res) => {
   const { name, email, password, confirmPassword, role } = req.body;
   const img = req.file ? req.file.path : "Basma_Academy/lmtsuynf4f1ifrs96qyi";
 
+
+  
+
   const validationErrors = validateInput({
     name,
     email,
@@ -164,6 +167,12 @@ const failedAttempts = {};
 exports.login = async (req, res) => {
   const { email, password, mfaCode, ip } = req.body;
   const clientIp = ip || req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+
+
+  if (!email.endsWith("@kasselsoft.com")) {
+    return res.status(400).json({ message: "Email is not authorized for login process" });
+  }
+
 
   console.log(`Attempted login from IP: ${clientIp}`);
 

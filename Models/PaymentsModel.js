@@ -38,7 +38,7 @@ const Payment = sequelize.define('Payment', {
   },
   course_id: {  
     type: DataTypes.INTEGER,
-    allowNull: false,  
+    allowNull: true,  
     references: {
       model: Course, 
       key: 'id',
