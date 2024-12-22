@@ -1,7 +1,7 @@
 const Purchasesteps = require("../Models/PurchaseSteps.js");
 const { client } = require('../Utils/redisClient'); 
 
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput.js");
 
 exports.createPurchasesteps = async (req, res) => {
   try {

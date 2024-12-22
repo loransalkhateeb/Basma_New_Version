@@ -1,6 +1,6 @@
 const About = require("../Models/AboutModel");
 const { client } = require('../Utils/redisClient');
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 
 exports.createAbout = async (req, res) => {
   try {
@@ -35,6 +35,8 @@ exports.createAbout = async (req, res) => {
 
 exports.getAbout = async (req, res) => {
   try {
+    await client.del(`about:all`);
+
     const cachedData = await client.get("about:all");
 
     if (cachedData) {

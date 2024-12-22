@@ -1,6 +1,6 @@
 const AvailableCards = require("../Models/AvailableCard");
 const Governorate = require("../Models/Governorate");
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const { client } = require('../Utils/redisClient');
 const multer = require("../Config/Multer");
 
@@ -71,12 +71,8 @@ exports.getAvailableCardById = async (req, res) => {
     }
 
     const availableCard = await AvailableCards.findByPk(id, {
-      include: [{ model: Governorate, attributes: ['governorate'] }]
+      include: [{ model: Governorate, attributes: ['governorate'] }]})
 
-    const card = await AvailableCards.findByPk(id, {
-      include: [{ model: Governorate,as:"governorate", attributes: ['governorate'] }]
-
-    });
 
     if (!availableCard) {
       return res.status(404).json( ErrorResponse("Available Card not found"));

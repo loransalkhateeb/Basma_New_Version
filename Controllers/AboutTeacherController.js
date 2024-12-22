@@ -1,6 +1,6 @@
 const AboutTeacher = require("../Models/AboutTeacher");
 const multer = require("../Config/Multer");
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const { client } = require('../Utils/redisClient'); 
 
 exports.createAboutTeacher = async (req, res) => {
@@ -39,6 +39,7 @@ exports.createAboutTeacher = async (req, res) => {
 
 exports.getAboutTeacher = async (req, res) => {
   try {
+    await client.del(`aboutTeachers:all`);
    
     const cachedData = await client.get("aboutTeachers:all");
     if (cachedData) {

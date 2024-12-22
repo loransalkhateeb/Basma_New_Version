@@ -1,24 +1,12 @@
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput.js");
 const Course = require("../Models/Courses.js");
 const Video = require("../Models/Videos.js");
-// const { sendEmailNotification } = require('../Utils/emailUtils');
 const { client } = require("../Utils/redisClient");
-
 const CourseUsers = require("../Models/CourseUsers.js");
-
 const { Sequelize } = require("../Config/dbConnect.js");
-
-const { type } = require("os");
 const asyncHandler = require("../MiddleWares/asyncHandler.js");
-
-const db = require("../Config/dbConnect.js");
 const ffmpeg = require("fluent-ffmpeg");
 require("dotenv").config();
-const path = require("path");
-// const ffmpegPathw = process.env.FFMPEG_PATH
-
-// const ffmpegPath =  './ffmpeg/bin/ffmpeg-6.1-win-64/ffmpeg'
-// const ffprobePath = './ffmpeg/bin/ffprobe-6.1-win-64/ffprobe'
 const ffmpegPath =
   "C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffmpeg";
 const ffprobePath =
@@ -27,29 +15,10 @@ const ffprobePath =
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
-// ffmpeg.ffprobe('./videoplayback.mp4', function(err, metadata) {
-//   if (err) {
-//     console.error('ffprobe error:', err);
-//   } else {
-//     console.log('ffprobe metadata:', metadata);
-//   }
-// });
-
 const Teacher = require("../Models/TeacherModel.js");
 const Department = require("../Models/DepartmentModel.js");
 
-// function getVideoDurationInSeconds(videoPath) {
-//   return new Promise((resolve, reject) => {
-//     ffmpeg.ffprobe(videoPath, (err, metadata) => {
-//       if (err) {
-//         reject(err);
-//       } else {
-//         const duration = metadata.format.duration;
-//         resolve(duration);
-//       }
-//     });
-//   });
-// }
+
 function getVideoDurationInSeconds(videoPath) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(videoPath, (err, metadata) => {
@@ -545,17 +514,6 @@ exports.getByDepartmentAndTeacher = async (req, res) => {
         'id',
         'subject_name', 
         [Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'), 'created_date'], 
-
-    const courses = await Course.findAll({
-      attributes: [
-        "id",
-        "subject_name",
-        "img",
-        [
-          Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'),
-          "created_at",
-        ],
-
       ],
       include: [
         {

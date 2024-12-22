@@ -3,7 +3,6 @@ const sequelize = require('../Config/dbConnect');
 
 const department = require('../Models/DepartmentModel')
 
-const department = require('../Models/DepartmentModel');
 const CommentCourse = require('./CommentCourseModel');
 
 

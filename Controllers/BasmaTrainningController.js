@@ -1,5 +1,5 @@
 const BasmaTraining = require('../Models/BasmaTraining');
-const { validateInput, ErrorResponse } = require('../Utils/validateInput');
+const { validateInput, ErrorResponse } = require('../Utils/ValidateInput');
 const { client } = require('../Utils/redisClient');
 
 exports.createBasmaTraining = async (req, res) => {
@@ -60,7 +60,7 @@ exports.getBasmaTrainingById = async (req, res) => {
 
     const cachedData = await client.get(`basmaTraining:${id}`);
     if (cachedData) {
-      return res.status(200).json(JSON.parse(cachedData));
+      return res.status(200).json([JSON.parse(cachedData)]);
     }
 
     const basmaTraining = await BasmaTraining.findByPk(id);

@@ -6,7 +6,7 @@ const dotenv = require("dotenv");
 const asyncHandler = require("../MiddleWares/asyncHandler.js");
 const { client } = require("../Utils/redisClient");
 const { Sequelize } = require("sequelize");
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput.js");
 const speakeasy = require("speakeasy");
 dotenv.config();
 const nodemailer = require("nodemailer");
@@ -175,10 +175,10 @@ exports.login = async (req, res) => {
   const geo = geoip.lookup(clientIp);
   console.log(`GeoIP Lookup for IP: ${clientIp}`, geo);
 
-  if (!geo || geo.country !== "JO") {
-    console.log(`Access denied for non-Jordan IP: ${clientIp}`);
-    return res.status(403).send("Access is restricted to Jordan IPs only.");
-  }
+  // if (!geo || geo.country !== "JO") {
+  //   console.log(`Access denied for non-Jordan IP: ${clientIp}`);
+  //   return res.status(403).send("Access is restricted to Jordan IPs only.");
+  // }
 
   try {
     const user = await User.findOne({ where: { email } });
@@ -271,6 +271,80 @@ exports.login = async (req, res) => {
 };
 
 
+// exports.login = async (req, res) => {
+//   const { email, password, deviceInfo } = req.body;
+
+//   if (!deviceInfo) return res.status(400).send('Device information is required');
+
+//   try {
+//     const user = await User.findOne({ where: { email } });
+//     if (!user) return res.status(400).send('User not found');
+
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(400).send('Invalid password');
+
+//     // Retrieve stored device info
+//     const storedDeviceInfo = await User.getDeviceInfo(user.id);
+
+//     if (!storedDeviceInfo) {
+//       // If no device info is stored
+//       if (user.role === 'student') {
+//         // For students, store the device info
+//         await User.updateDeviceInfo(user.id, deviceInfo);
+//         return res.status(200).json({
+//           message: 'تم حفظ معلومات جهازك. سوف تكون قادر على تسجيل الدخول فقط من هذا الجهاز',
+//           token: jwt.sign(
+//             { id: user.id, role: user.role, name: user.name, img: user.img },
+//             SECRET_KEY,
+//             { expiresIn: '1h' }
+//           ),
+//           name: user.name,
+//           role: user.role,
+//           id: user.id,
+//           img: user.img
+//         });
+//       } else {
+//         // For non-students, do not store device info
+//         return res.status(200).json({
+//           message: 'تم تسجيل الدخول بنجاح.',
+//           token: jwt.sign(
+//             { id: user.id, role: user.role, name: user.name, img: user.img },
+//             SECRET_KEY,
+//             { expiresIn: '1h' }
+//           ),
+//           name: user.name,
+//           role: user.role,
+//           id: user.id,
+//           img: user.img
+//         });
+//       }
+//     } else {
+//       // Compare stored device info with incoming device info
+//       if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
+//         return res.status(403).json({
+//           message: 'Login not allowed from this device'
+//         });
+//       }
+
+//       // Generate JWT token for matching device info
+//       const token = jwt.sign(
+//         { id: user.id, role: user.role, name: user.name, img: user.img },
+//         SECRET_KEY,
+//         { expiresIn: '1h' }
+//       );
+
+//       return res.status(200).json({
+//         token,
+//         name: user.name,
+//         role: user.role,
+//         id: user.id,
+//         img: user.img
+//       });
+//     }
+//   } catch (err) {
+//     res.status(500).send(err.message);
+//   }
+// };
 
 
 

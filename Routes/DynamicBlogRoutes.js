@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const dynamicBlogController = require('../Controllers/dynamicBlogController');
+const dynamicBlogController = require('../Controllers/DynamicBlogController');
 const rateLimiter = require('../MiddleWares/rateLimiter');
 const authMiddleware = require('../MiddleWares/authMiddleware'); 
 

@@ -1,6 +1,6 @@
 const { Op } = require("sequelize");
 const Slider = require("../Models/Slider");
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput");
 const fs = require("fs");
 const path = require("path");
 
