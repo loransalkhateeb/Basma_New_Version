@@ -64,39 +64,42 @@ exports.getAvailableCardById = async (req, res) => {
   try {
     const { id } = req.params;
 
-
+    
     const cachedData = await client.get(`availableCard:${id}`);
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
     }
 
+    
     const availableCard = await AvailableCards.findByPk(id, {
-      include: [{ model: Governorate, attributes: ['governorate'] }]
-
-    const card = await AvailableCards.findByPk(id, {
-      include: [{ model: Governorate,as:"governorate", attributes: ['governorate'] }]
-
+      include: [{ model: Governorate, as: "governorate", attributes: ['governorate'] }]
     });
 
+    
     if (!availableCard) {
-      return res.status(404).json( ErrorResponse("Available Card not found"));
+      return res.status(404).json({
+        message: "Available Card not found",
+      });
     }
 
 
     await client.setEx(`availableCard:${id}`, 3600, JSON.stringify(availableCard));
 
+    
     res.status(200).json({
       message: "Available Card retrieved successfully",
-      availableCard
+      data: availableCard,
     });
-
-    res.status(200).json([card]);
 
   } catch (error) {
     console.error(error);
-    res.status(500).json( ErrorResponse("Failed to retrieve Available Card", ["An error occurred while retrieving the Available Card. Please try again"]));
+    res.status(500).json({
+      message: "Failed to retrieve Available Card",
+      errors: ["An error occurred while retrieving the Available Card. Please try again"],
+    });
   }
 };
+
 
 exports.updateAvailableCard = async (req, res) => {
   const { id } = req.params;
@@ -206,7 +209,7 @@ exports.createGovernorate = async (req, res) => {
     if (!governorate) {
       return res.status(400).json(new ErrorResponse("Validation failed", ["Governorate name is required"]));
     }
-
+    
     const newGovernorate = await Governorate.create({ governorate });
 
     res.status(201).json({

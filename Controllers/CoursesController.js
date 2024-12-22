@@ -1,10 +1,10 @@
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput.js");
 const Course = require("../Models/Courses.js");
 const Video = require("../Models/Videos.js");
 // const { sendEmailNotification } = require('../Utils/emailUtils');
 const { client } = require("../Utils/redisClient");
 
-const CourseUsers = require("../Models/CourseUsers.js");
+const course_users = require("../Models/course_users.js");
 
 const { Sequelize } = require("../Config/dbConnect.js");
 
@@ -535,17 +535,15 @@ exports.deleteVideoById = async (req, res) => {
 
 exports.getByDepartmentAndTeacher = async (req, res) => {
   try {
-    const department_id = req.params.department_id;
-    const teacher_email = req.params.teacher_email;
+    const { department_id, teacher_email } = req.params;
 
+    // Check if cached data exists
+    const cachedData = await client.get(`courses:${department_id}:${teacher_email}`);
+    if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
+    }
 
-    
-    const courses = await Course.findAll({
-      attributes: [
-        'id',
-        'subject_name', 
-        [Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'), 'created_date'], 
-
+    // Fetch courses from the database
     const courses = await Course.findAll({
       attributes: [
         "id",
@@ -553,22 +551,12 @@ exports.getByDepartmentAndTeacher = async (req, res) => {
         "img",
         [
           Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'),
-          "created_at",
+          "created_date",
         ],
-
       ],
       include: [
         {
           model: Department,
-
-          attributes: ['title'], 
-          where: { id: department_id }, 
-        },
-        {
-          model: Teacher,
-          attributes: ['teacher_name'], 
-          where: { email: teacher_email }, 
-
           attributes: ["title"],
           where: { id: department_id },
         },
@@ -576,51 +564,34 @@ exports.getByDepartmentAndTeacher = async (req, res) => {
           model: Teacher,
           attributes: ["teacher_name", "email"],
           where: { email: teacher_email },
-
         },
       ],
-      where: { department_id },
     });
 
-
-    
+    // Handle case where no courses are found
     if (courses.length === 0) {
-      return res.status(404).json({ message: 'No courses found for the given department and teacher.' });
+      return res.status(404).json({
+        message: "No courses found for the given department and teacher.",
+      });
     }
 
-    
-    client.setEx(`courses:${department_id}:${teacher_email}`, 600, JSON.stringify(courses));
+    // Cache the result
+    await client.setEx(`courses:${department_id}:${teacher_email}`, 600, JSON.stringify(courses));
 
-   
-
-    if (courses.length === 0) {
-      return res
-        .status(404)
-        .json({
-          message: "No courses found for the given department and teacher.",
-        });
-    }
-
-    client.setEx(
-      `courses:${department_id}:${teacher_email}`,
-      600,
-      JSON.stringify(courses)
-    );
-
-
-    res.json(courses);
+    // Send response
+    res.status(200).json({
+      message: "Courses retrieved successfully",
+      data: courses,
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({
-
-      message: 'Failed to fetch courses by department and teacher',
-
       message: "Failed to fetch courses by department and teacher",
-
       error: error.message,
     });
   }
 };
+
 
 exports.updateCourse = async (req, res) => {
   try {
@@ -711,14 +682,14 @@ exports.getUserCountForCourse = asyncHandler(async (req, res) => {
       attributes: [
         "id",
         [
-          Sequelize.fn("COUNT", Sequelize.col("courseUsers.user_id")),
+          Sequelize.fn("COUNT", Sequelize.col("course_users.user_id")),
           "student_count",
         ],
       ],
       include: [
         {
-          model: CourseUsers,
-          as: "courseUsers",
+          model: course_users,
+          as: "course_users",
           attributes: [],
         },
       ],

@@ -1,6 +1,6 @@
 const Department = require("../Models/DepartmentModel");
 const { client } = require('../Utils/redisClient');
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 
 exports.createDepartment = async (req, res) => {
   try {

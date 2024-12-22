@@ -3,9 +3,8 @@ const sequelize = require('../Config/dbConnect');
 
 const department = require('../Models/DepartmentModel')
 
-const department = require('../Models/DepartmentModel');
 const CommentCourse = require('./CommentCourseModel');
-
+const course_users = require('../Models/course_users')
 
 const courses = sequelize.define('courses', {
     id: {
@@ -112,9 +111,8 @@ CommentCourse.belongsTo(courses, { foreignKey: 'course_id' });
 
   
 
-
-
-module.exports = courses;
+course_users.belongsTo(courses, { foreignKey: 'course_id' });
+courses.hasMany(course_users, { foreignKey: 'course_id' });
 
 
 

@@ -1,11 +1,14 @@
 
 const { client } = require('../Utils/redisClient');
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput");
 const asyncHandler = require('../MiddleWares/asyncHandler')
 const User = require('../Models/UserModel')
 
 
 const { Op } = require("sequelize");
+const course_users = require('../Models/course_users');
+const teachers = require('../Models/TeacherModel');
+const Payment = require('../Models/PaymentsModel');
 
 exports.createUser = async (req, res) => {
   try {
@@ -224,70 +227,37 @@ exports.findById = async (id) => {
 
 
 
-
-  exports.deleteAdmin = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-  
+  exports.deleteAdmin = async (req, res) => {
     try {
-      
-        const cacheKey = `admin:${id}`;
-      const cachedAdmin = await new Promise((resolve, reject) => {
-        client.get(cacheKey, (err, data) => {
-          if (err) return reject(err);
-          resolve(data ? JSON.parse(data) : null);
-        });
-      });
+      const { id } = req.params;
   
-      if (cachedAdmin) {
-        
-        client.del(cacheKey);
+     
+      const admin = await User.findOne({ where: { id, role: 'admin' } });
+      if (!admin) {
+        return res.status(404).json( ErrorResponse("Admin not found", ["No admin found with the given id"]));
       }
   
       
-      
+      const cacheKey = `admin:${id}`;
+      await client.del(cacheKey);
+  
+     
       await Promise.all([
-        
-        CourseUser.destroy({
-          where: { user_id: id },
-          individualHooks: true 
-        }),
-  
-        
-        TeacherStudent.destroy({
-          where: { student_id: id },
-          individualHooks: true 
-        }),
-  
-        
-        Payment.destroy({
-          where: { user_id: id },
-          individualHooks: true 
-        }),
-  
-        
-        User.destroy({
-          where: { id, role: 'admin' }
-        })
+        course_users.destroy({ where: { user_id: id } }),
+        teachers.destroy({ where: { id: id } }),
+        Payment.destroy({ where: { user_id: id } }),
+        admin.destroy() 
       ]);
   
       
-      const deletedAdmin = await User.findOne({
-        where: { id, role: 'admin' }
-      });
+      await client.del(cacheKey);
   
-      if (!deletedAdmin) {
-        return res.status(404).json({ message: "Admin not found" });
-      }
-  
-      
-      client.del(cacheKey);
-  
-      return res.json({ message: "Admin and related records deleted successfully" });
+      res.status(200).json({ message: "Admin and related records deleted successfully" });
     } catch (error) {
-      console.error("Error in deleting admin:", error);
-      return res.status(500).json({ message: "Error deleting admin and related records" });
+      console.error(error);
+      res.status(500).json( ErrorResponse("Failed to delete admin", ["An error occurred while deleting the admin and related records"]));
     }
-  });
+  };
 
 
 

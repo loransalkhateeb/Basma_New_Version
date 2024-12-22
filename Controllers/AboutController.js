@@ -1,6 +1,6 @@
 const About = require("../Models/AboutModel");
 const { client } = require('../Utils/redisClient');
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 
 exports.createAbout = async (req, res) => {
   try {

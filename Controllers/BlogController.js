@@ -3,7 +3,7 @@ const Tag = require("../Models/TagModel");
 const Department = require("../Models/DepartmentModel");
 const asyncHandler = require("../MiddleWares/asyncHandler");
 const nodemailer = require("nodemailer");
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 
 const transporter = nodemailer.createTransport({
   service: "gmail",

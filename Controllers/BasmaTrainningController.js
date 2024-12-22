@@ -1,5 +1,5 @@
 const BasmaTraining = require('../Models/BasmaTraining');
-const { validateInput, ErrorResponse } = require('../Utils/validateInput');
+const { validateInput, ErrorResponse } = require('../Utils/ValidateInput');
 const { client } = require('../Utils/redisClient');
 
 exports.createBasmaTraining = async (req, res) => {
@@ -28,6 +28,7 @@ exports.createBasmaTraining = async (req, res) => {
     res.status(500).json(ErrorResponse("Failed to create BasmaTraining", ["An error occurred while creating the BasmaTraining. Please try again later."]));
   }
 };
+
 
 exports.getAllBasmaTraining = async (req, res) => {
   try {

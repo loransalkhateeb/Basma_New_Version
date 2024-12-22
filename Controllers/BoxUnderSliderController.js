@@ -1,5 +1,5 @@
 const { client } = require('../Utils/redisClient');
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const BoxSlider = require("../Models/BoxUnderSliderModel");
 
 exports.addBoxSlider = async (req, res) => {

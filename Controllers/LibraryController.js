@@ -1,6 +1,6 @@
 const Library = require("../Models/LibraryModel");
 const { client } = require("../Utils/redisClient");
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const cloudinary = require("../Config/CloudinaryConfig");
 const asyncHandler = require("../MiddleWares/asyncHandler");
 const Department = require("../Models/DepartmentModel");

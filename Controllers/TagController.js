@@ -1,5 +1,5 @@
 const { client } = require('../Utils/redisClient');
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput");
 const Blog = require('../Models/BlogsModel')
 const Tag = require('../Models/TagModel')
 

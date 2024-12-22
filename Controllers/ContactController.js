@@ -1,5 +1,5 @@
 const { client } = require('../Utils/redisClient');
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const  Contact  = require("../Models/ContactModel");  
 
 exports.addContact = async (req, res) => {

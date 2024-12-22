@@ -1,7 +1,8 @@
 const CommentCourse = require("../Models/CommentCourseModel");
-const Course= require("../Models/Courses");
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const Course = require("../Models/Courses");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput");
 const nodemailer = require("nodemailer");
+require("dotenv").config();
 
 
 const transporter = nodemailer.createTransport({
@@ -10,24 +11,32 @@ const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  secure: true, 
+  tls: {
+    rejectUnauthorized: true, 
+    },
 });
+
 
 
 exports.addCommentCourse = async (req, res) => {
   try {
     const { name, email, comment, rating, course_id } = req.body;
-
-
-    const validationErrors = validateInput({  name, email, comment, rating, course_id });
+    
+    const validationErrors = validateInput({ name, email, comment, rating, course_id });
     if (validationErrors.length > 0) {
       return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
     }
 
- 
-    const courses = await Course.findByPk(course_id);
-    const CoursesTitle = courses ? courses.title : "Unknown Courses";
+    
+    const course = await Course.findByPk(course_id, {
+      attributes: ["title"], 
+        });
+    if (!course) {
+      return res.status(404).json(ErrorResponse("Course not found", [`No course with ID: ${course_id}`]));
+    }
 
-  
+    
     const newComment = await CommentCourse.create({
       name,
       email,
@@ -37,19 +46,19 @@ exports.addCommentCourse = async (req, res) => {
       action: "not approved",
     });
 
-  
+    
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: "loransmahmoodalkhateeb@gmail.com",
-      subject: "تعليق جديد يتطلب الموافقة", 
+      to: process.env.ADMIN_EMAIL, 
+      subject: "تعليق جديد يتطلب الموافقة",
       html: `
         <p>تم تقديم تعليق جديد ويتطلب موافقتك</p>
-        <p><strong>Name:</strong> ${name}</p>
-        <p><strong>Email:</strong> ${email}</p>
-        <p><strong>Comment:</strong> ${comment}</p>
-        <p><strong>Courses Name:</strong> ${CoursesTitle}</p>
+        <p><strong>الاسم:</strong> ${name}</p>
+        <p><strong>البريد الإلكتروني:</strong> ${email}</p>
+        <p><strong>التعليق:</strong> ${comment}</p>
+        <p><strong>اسم الكورس:</strong> ${course.title}</p>
         <p>يرجى تسجيل الدخول إلى لوحة التحكم للموافقة على هذا التعليق أو رفضه:</p>
-        <p><a href="https://dashboard.ba9maonline.com/">https://dashboard.ba9maonline.com/</a></p>
+        <p><a href="${process.env.DASHBOARD_URL}">${process.env.DASHBOARD_URL}</a></p>
       `,
     };
 
@@ -69,6 +78,7 @@ exports.addCommentCourse = async (req, res) => {
 exports.getCommentCourse = async (req, res) => {
   try {
     const comments = await CommentCourse.findAll({
+      attributes: ["id", "name", "email", "comment", "rating", "action"],
       include: [
         {
           model: Course,
