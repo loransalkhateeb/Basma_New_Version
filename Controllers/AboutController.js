@@ -2,24 +2,32 @@ const About = require("../Models/AboutModel");
 const { client } = require('../Utils/redisClient');
 const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 
+
 exports.createAbout = async (req, res) => {
   try {
     const { title, descr } = req.body || {};
-
+    
     if (!title || !descr) {
-      return res
-        .status(400)
-        .json(ErrorResponse("Validation failed", ["Title and description are required"]));
+      return res.status(400).json(ErrorResponse("Validation failed", ["Title and description are required"]));
     }
 
     const img = req.file?.filename || null;
 
+    
     const validationErrors = validateInput({ title, descr });
     if (validationErrors.length > 0) {
       return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
     }
 
-    const newHero = await About.create({ title, descr, img });
+    const newHeroPromise = About.create({ title, descr, img });
+   
+    const cacheDeletePromises = [
+      client.del(`about:page:1:limit:20`), 
+
+    ];
+
+   
+    const [newHero] = await Promise.all([newHeroPromise, ...cacheDeletePromises]);
 
     await client.set(`about:${newHero.id}`, JSON.stringify(newHero), { EX: 3600 });
 
@@ -33,11 +41,18 @@ exports.createAbout = async (req, res) => {
   }
 };
 
+
+
+
+
+
 exports.getAbout = async (req, res) => {
   try {
-    await client.del(`about:all`);
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
 
-    const cachedData = await client.get("about:all");
+    const cacheKey = `about:page:${page}:limit:${limit}`;
+    const cachedData = await client.get(cacheKey);
 
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
@@ -46,9 +61,12 @@ exports.getAbout = async (req, res) => {
     const aboutEntries = await About.findAll({
       attributes: ['id', 'title', 'descr', 'img'],
       order: [['id', 'DESC']],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
-    await client.setEx("about:all", 3600, JSON.stringify(aboutEntries));
+   
+    await client.setEx(cacheKey, 3600, JSON.stringify(aboutEntries));
 
     res.status(200).json(aboutEntries);
   } catch (error) {
@@ -57,10 +75,14 @@ exports.getAbout = async (req, res) => {
   }
 };
 
+
+
+
 exports.getAboutById = async (req, res) => {
   try {
     const { id } = req.params;
 
+   
     const cachedData = await client.get(`about:${id}`);
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
@@ -84,6 +106,8 @@ exports.getAboutById = async (req, res) => {
   }
 };
 
+
+
 exports.updateAbout = async (req, res) => {
   try {
     const { id } = req.params;
@@ -106,10 +130,8 @@ exports.updateAbout = async (req, res) => {
 
     await aboutEntry.save();
 
+
     await client.setEx(`about:${id}`, 3600, JSON.stringify(aboutEntry));
-
-
-    client.setEx(`about:${id}`, 3600, JSON.stringify(aboutEntry));
 
     res.status(200).json({
       message: "About entry updated successfully",
@@ -121,6 +143,7 @@ exports.updateAbout = async (req, res) => {
   }
 };
 
+
 exports.deleteAbout = async (req, res) => {
   try {
     const { id } = req.params;
@@ -131,6 +154,8 @@ exports.deleteAbout = async (req, res) => {
     }
 
     await aboutEntry.destroy();
+
+
     await client.del(`about:${id}`);
 
     res.status(200).json({ message: "About entry deleted successfully" });
