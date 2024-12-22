@@ -1,5 +1,5 @@
 const { client } = require('../Utils/redisClient');
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput.js");
 const Teacher = require('../Models/TeacherModel')
 const asyncHandler = require('../MiddleWares/asyncHandler')
 const ffmpeg = require('fluent-ffmpeg');
@@ -811,7 +811,7 @@ exports.deleteTeacherCourse = asyncHandler(async (req, res) => {
       return res.status(400).json({ error: "Course ID is required" });
     }
   
-    const transaction = await sequelize.transaction();
+    const transaction = await Sequelize.transaction();
   
     try {
       

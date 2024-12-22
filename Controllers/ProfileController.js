@@ -1,7 +1,7 @@
 const  User  = require('../Models/UserModel'); 
 const asyncHandler = require('../MiddleWares/asyncHandler'); 
 const { client } = require('../Utils/redisClient'); 
-const { ErrorResponse, validateInput } = require("../Utils/validateInput"); 
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput"); 
 const bcrypt = require('bcrypt'); 
 
 

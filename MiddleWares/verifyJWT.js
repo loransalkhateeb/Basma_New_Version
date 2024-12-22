@@ -6,7 +6,7 @@ const dotenv = require("dotenv");
 const asyncHandler = require("../MiddleWares/asyncHandler.js");
 const { client } = require("../Utils/redisClient");
 const { Sequelize } = require("sequelize");
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput.js");
 const speakeasy = require("speakeasy");
 dotenv.config();
 const nodemailer = require("nodemailer");

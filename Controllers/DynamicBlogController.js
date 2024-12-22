@@ -1,5 +1,5 @@
 const { client } = require('../Utils/redisClient');
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const DynamicBlog = require("../Models/DynamicBlogModel"); 
 
 exports.addDynamicBlog = async (req, res) => {

@@ -85,7 +85,11 @@ exports.updateStatusPayments = asyncHandler(async (req, res) => {
 });
 
 
-exports.buyDepartment = async (req, res) => {
+
+
+
+
+exports.buyDepartment = asyncHandler(async (req, res) => {
   const { student_name, email, address, phone, coupon_code, department_id, user_id } = req.body;
 
   if (!student_name || !email || !address || !phone || !coupon_code || !department_id || !user_id) {
@@ -105,11 +109,10 @@ exports.buyDepartment = async (req, res) => {
     });
 
     if (!coupon) {
-      return res.status(400).json({ error: "رمز الكوبون غير صالح أو تم استخدامه بالفعل" });
+      return res.status(400).json({ error: "Invalid or already used coupon" });
     }
 
 
-   
     const payment = await Payment.create({
       student_name,
       email,
@@ -120,81 +123,52 @@ exports.buyDepartment = async (req, res) => {
       user_id,
     });
 
-    
+
     const courses = await Course.findAll({
-      where: { department_id }
+      attributes: ['id'],
+      where: { department_id },
+      raw: true,
     });
 
     if (courses.length === 0) {
       return res.status(400).json({ error: "No courses found for this department" });
     }
 
-   
+
     await coupon.update({ used: true });
 
    
-    const courseUserPromises = courses.map(course => {
-      return CourseUser.create({
-        user_id,
-        course_id: course.id,
-        payment_id: payment.id
-      });
-    });
+    const courseUserRecords = courses.map(course => ({
+      user_id: user_id,            
+      course_id: course.id,        
+      payment_id: payment.id,     
+      payment_status: 'approved',  
+    }));
+    
 
-    await Promise.all(courseUserPromises);
-
-    res.json({ message: "Department purchased successfully and courses unlocked" });
-
-  } catch (error) {
-    console.error("Error during department purchase:", error);
-    res.status(500).json({ error: "Database error" });
-  }
-};
-
-
-
-   
-    const payment = await Payment.create({
-      student_name,
-      email,
-      address,
-      phone,
-      coupon_id: coupon.id,
-      department_id,
-      user_id,
-    });
+    console.log('Records to insert:', courseUserRecords); 
+ 
+    const result = await CourseUser.bulkCreate(courseUserRecords, { returning: true });
+    console.log('Inserted records:', JSON.stringify(result, null, 2));
+    
+    
 
     
-    const courses = await Course.findAll({
-      where: { department_id }
-    });
+    await client.del('payments');
+    await client.del('departments');
 
-    if (courses.length === 0) {
-      return res.status(400).json({ error: "No courses found for this department" });
-    }
-
-   
-    await coupon.update({ used: true });
-
-   
-    const courseUserPromises = courses.map(course => {
-      return CourseUser.create({
-        user_id,
-        course_id: course.id,
-        payment_id: payment.id
-      });
-    });
-
-    await Promise.all(courseUserPromises);
-
-    res.json({ message: "Department purchased successfully and courses unlocked" });
-
+ 
+    res.status(200).json({ message: "Department purchased successfully and courses unlocked" });
 
   } catch (error) {
     console.error("Error during department purchase:", error);
-    res.status(500).json({ error: "Database error" });
+    res.status(500).json({ error: "Database error. Please try again later." });
   }
-};
+});
+
+
+
+
 
 exports.getCourseUsers = asyncHandler(async (req, res) => {
   try {

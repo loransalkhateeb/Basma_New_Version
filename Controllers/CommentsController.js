@@ -1,6 +1,6 @@
 const  Comment  = require("../Models/Commentsmodel");
 const Blog = require("../Models/BlogsModel");
-const { ErrorResponse, validateInput } = require("../Utils/validateInput");
+const { ErrorResponse, validateInput } = require("../Utils/ValidateInput");
 const nodemailer = require("nodemailer");
 
 

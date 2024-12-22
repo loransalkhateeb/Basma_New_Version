@@ -1,6 +1,6 @@
 const AboutTeacher = require("../Models/AboutTeacher");
 const multer = require("../Config/Multer");
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const { client } = require('../Utils/redisClient'); 
 
 exports.createAboutTeacher = async (req, res) => {
