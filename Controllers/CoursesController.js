@@ -1,24 +1,14 @@
 const { validateInput, ErrorResponse } = require("../Utils/ValidateInput.js");
 const Course = require("../Models/Courses.js");
 const Video = require("../Models/Videos.js");
-// const { sendEmailNotification } = require('../Utils/emailUtils');
 const { client } = require("../Utils/redisClient");
 
 const course_users = require("../Models/course_users.js");
 
 const { Sequelize } = require("../Config/dbConnect.js");
-
-const { type } = require("os");
 const asyncHandler = require("../MiddleWares/asyncHandler.js");
-
-const db = require("../Config/dbConnect.js");
 const ffmpeg = require("fluent-ffmpeg");
 require("dotenv").config();
-const path = require("path");
-// const ffmpegPathw = process.env.FFMPEG_PATH
-
-// const ffmpegPath =  './ffmpeg/bin/ffmpeg-6.1-win-64/ffmpeg'
-// const ffprobePath = './ffmpeg/bin/ffprobe-6.1-win-64/ffprobe'
 const ffmpegPath =
   "C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffmpeg";
 const ffprobePath =
@@ -27,29 +17,10 @@ const ffprobePath =
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
 
-// ffmpeg.ffprobe('./videoplayback.mp4', function(err, metadata) {
-//   if (err) {
-//     console.error('ffprobe error:', err);
-//   } else {
-//     console.log('ffprobe metadata:', metadata);
-//   }
-// });
-
 const Teacher = require("../Models/TeacherModel.js");
 const Department = require("../Models/DepartmentModel.js");
 
-// function getVideoDurationInSeconds(videoPath) {
-//   return new Promise((resolve, reject) => {
-//     ffmpeg.ffprobe(videoPath, (err, metadata) => {
-//       if (err) {
-//         reject(err);
-//       } else {
-//         const duration = metadata.format.duration;
-//         resolve(duration);
-//       }
-//     });
-//   });
-// }
+
 function getVideoDurationInSeconds(videoPath) {
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(videoPath, (err, metadata) => {
@@ -535,24 +506,16 @@ exports.deleteVideoById = async (req, res) => {
 
 exports.getByDepartmentAndTeacher = async (req, res) => {
   try {
-    const { department_id, teacher_email } = req.params;
+    const department_id = req.params.department_id;
+    const teacher_email = req.params.teacher_email;
 
-    // Check if cached data exists
-    const cachedData = await client.get(`courses:${department_id}:${teacher_email}`);
-    if (cachedData) {
-      return res.status(200).json(JSON.parse(cachedData));
-    }
 
-    // Fetch courses from the database
+    
     const courses = await Course.findAll({
       attributes: [
-        "id",
-        "subject_name",
-        "img",
-        [
-          Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'),
-          "created_date",
-        ],
+        'id',
+        'subject_name', 
+        [Sequelize.literal('DATE_FORMAT(courses.created_at, "%Y-%m-%d")'), 'created_date'], 
       ],
       include: [
         {
@@ -701,13 +664,12 @@ exports.getUserCountForCourse = asyncHandler(async (req, res) => {
     }
 
     const studentCount = parseInt(courseData.dataValues.student_count, 10);
-
     await client.setEx(
       `course:${id}:student_count`,
-      studentCount.toString(),
-      "EX",
-      300
+      300, // Expiration time in seconds
+      studentCount.toString() // Value to store
     );
+    
 
     res.status(200).json({
       id: courseData.id,

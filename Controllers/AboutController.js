@@ -35,6 +35,8 @@ exports.createAbout = async (req, res) => {
 
 exports.getAbout = async (req, res) => {
   try {
+    await client.del(`about:all`);
+
     const cachedData = await client.get("about:all");
 
     if (cachedData) {

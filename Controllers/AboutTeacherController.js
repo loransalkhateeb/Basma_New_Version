@@ -39,6 +39,7 @@ exports.createAboutTeacher = async (req, res) => {
 
 exports.getAboutTeacher = async (req, res) => {
   try {
+    await client.del(`aboutTeachers:all`);
    
     const cachedData = await client.get("aboutTeachers:all");
     if (cachedData) {

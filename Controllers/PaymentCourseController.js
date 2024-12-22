@@ -110,7 +110,7 @@ exports.buyCourse = asyncHandler(async (req, res) => {
     await coupon.update({ used: true });
 
     
-    const paymentStatus = "Approved";  
+    const paymentStatus = "approved";  
     await CourseUser.create({
       user_id,
       course_id,
@@ -137,6 +137,8 @@ exports.getApprovedCoursesForUser = asyncHandler(async (req, res, next) => {
   const { user_id } = req.params;
 
   try {
+    await client.del(`approved_courses_${user_id}`);
+
     const cachedCourses = await client.get(`approved_courses_${user_id}`);
     if (cachedCourses) {
       return res.status(200).json(JSON.parse(cachedCourses));
@@ -156,12 +158,21 @@ exports.getApprovedCoursesForUser = asyncHandler(async (req, res, next) => {
               model: Coupon,
               where: { expiration_date: { [Op.gte]: new Date() } },
             },
-            { model: Department },
+           
           ],
         },
         {
           model: Course,
-          include: [{ model: Teacher }],
+          include: [
+            {
+              model: Teacher,
+              attributes: ["id", "teacher_name", "descr", "email"],
+            },
+            {
+              model: Department,
+              attributes: ["id", "title", "price"],
+            },
+          ],
         },
       ],
     });

@@ -175,6 +175,11 @@ exports.getLibrary = async (req, res) => {
           "department_id",
           "createdAt",
         ],
+        include: {
+          model: Department, 
+          as:"department",
+          attributes: ["title"],
+        },
         order: [["id", "DESC"]],
       });
 
@@ -291,68 +296,116 @@ exports.getByDepartment = asyncHandler(async (req, res) => {
 });
 exports.updateLibrary = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { book_name, author, page_num, file_book, department_id } = req.body;
+      const { id } = req.params; // Extract book ID
+      const { book_name, author, page_num, department_id } = req.body; // Destructure body fields
+      const file_book = req.file?.filename; // Handle optional file uploads
 
-    const validationErrors = validateInput({
-      book_name,
-      author,
-      page_num,
-      file_book,
-      department_id,
-    });
-    if (validationErrors.length > 0) {
-      return res
-        .status(400)
-        .json(ErrorResponse("Validation failed", validationErrors));
-    }
+      // Find the existing book by ID
+      const existingBook = await Library.findByPk(id);
 
-    const libraryEntry = await Library.findByPk(id, {
-      attributes: [
-        "id",
-        "book_name",
-        "author",
-        "page_num",
-        "file_book",
-        "department_id",
-      ],
-    });
+      if (!existingBook) {
+          return res.status(404).json({ error: 'Book not found' });
+      }
+console.log(existingBook)
+      // Update the book with provided values or keep existing values
+      const updatedBook = await existingBook.update({
+          book_name: book_name ?? existingBook.book_name,
+          author: author ?? existingBook.author,
+          page_num: page_num ?? existingBook.page_num,
+          file_book: file_book ?? existingBook.file_book,
+          department_id: department_id ?? existingBook.department_id,
+      });
 
-    if (!libraryEntry) {
-      return res
-        .status(404)
-        .json(
-          ErrorResponse("Library entry not found", [
-            "No library entry found with the given id",
-          ])
-        );
-    }
-
-    libraryEntry.book_name = book_name || libraryEntry.book_name;
-    libraryEntry.author = author || libraryEntry.author;
-    libraryEntry.page_num = page_num || libraryEntry.page_num;
-    libraryEntry.file_book = file_book || libraryEntry.file_book;
-    libraryEntry.department_id = department_id || libraryEntry.department_id;
-
-    await libraryEntry.save();
-
-    client.setex(`library:${id}`, 3600, JSON.stringify(libraryEntry));
-
-    res.status(200).json({
-      message: "Library entry updated successfully",
-      libraryEntry,
-    });
+      return res.status(200).json({
+          message: 'Book updated successfully',
+          library: updatedBook,
+      });
   } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json(
-        new ErrorResponse("Failed to update library entry", [
-          "An error occurred while updating the entry",
-        ])
-      );
+      console.error('Error updating book:', error.message);
+      return res.status(500).json({
+          error: 'An error occurred while updating the book',
+          details: error.message,
+      });
   }
 };
+
+
+// exports.updateLibrary = async (req, res) => {
+//   try {
+    
+//     const { id } = req.params;
+//     const { book_name, author, page_num, file_book, department_id } = req.body;
+
+//     // Validate input
+//     const validationErrors = validateInput({
+//       book_name,
+//       author,
+//       page_num,
+//       file_book,
+//       department_id,
+//     });
+//     if (validationErrors.length > 0) {
+//       return res
+//         .status(400)
+//         .json(ErrorResponse("Validation failed", validationErrors));
+//     }
+
+//     // Find the library entry by ID
+//     const libraryEntry = await Library.findByPk(id, {
+//       attributes: [
+//         "id",
+//         "book_name",
+//         "author",
+//         "page_num",
+//         "file_book",
+//         "department_id",
+//       ],
+//     });
+
+//     // Check if the library entry exists
+//     if (!libraryEntry) {
+//       return res
+//         .status(404)
+//         .json(
+//           ErrorResponse("Library entry not found", [
+//             "No library entry found with the given id",
+//           ])
+//         );
+//     }
+
+//     // Update the library entry with new data or retain the old one
+//     libraryEntry.book_name = book_name || libraryEntry.book_name;
+//     libraryEntry.author = author || libraryEntry.author;
+//     libraryEntry.page_num = page_num || libraryEntry.page_num;
+//     libraryEntry.file_book = file_book || libraryEntry.file_book;
+//     libraryEntry.department_id = department_id || libraryEntry.department_id;
+
+//     // Save the updated library entry
+//     await libraryEntry.save();
+
+//     // Convert to plain JavaScript object to reflect the updated data
+//     const updatedLibraryEntry = libraryEntry.toJSON();
+
+//     // Cache the updated library entry in Redis
+//     client.setEx(`library:${id}`, 3600, JSON.stringify(updatedLibraryEntry));
+
+//     // Respond with the updated data
+//     res.status(200).json({
+//       message: "Library entry updated successfully",
+//       libraryEntry: updatedLibraryEntry,
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res
+//       .status(500)
+//       .json(
+//         ErrorResponse("Failed to update library entry", [
+//           "An error occurred while updating the entry",
+//         ])
+//       );
+//   }
+// };
+
 
 exports.deleteLibrary = async (req, res) => {
   try {

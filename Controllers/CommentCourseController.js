@@ -1,5 +1,5 @@
 const CommentCourse = require("../Models/CommentCourseModel");
-const Course = require("../Models/Courses");
+const Course= require("../Models/Courses");
 const { ErrorResponse, validateInput } = require("../Utils/ValidateInput");
 const nodemailer = require("nodemailer");
 require("dotenv").config();

@@ -61,7 +61,7 @@ exports.getBasmaTrainingById = async (req, res) => {
 
     const cachedData = await client.get(`basmaTraining:${id}`);
     if (cachedData) {
-      return res.status(200).json(JSON.parse(cachedData));
+      return res.status(200).json([JSON.parse(cachedData)]);
     }
 
     const basmaTraining = await BasmaTraining.findByPk(id);

@@ -18,6 +18,7 @@ router.get('/lastthree', rateLimiter, BlogController.getLastThreeBlogs);
 
 
 router.put('/update-blog/:id', rateLimiter,multer.single('img'), BlogController.updateBlog);
+router.put("/updateActionBlogs/:id", BlogController.updateActionBlogs); 
 
 
 router.delete('/delete-blog/:id', rateLimiter,  BlogController.deleteBlog);

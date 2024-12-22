@@ -100,6 +100,7 @@ exports.getTagById = async (req, res) => {
     try {
       const { tag_name } = req.params;
   
+    await client.del(`blogs:byTag:${tag_name}`);
       
       const data = await client.get(`blogs:byTag:${tag_name}`);
       if (data) {
@@ -111,7 +112,7 @@ exports.getTagById = async (req, res) => {
           include: {
             model: Tag, 
             where: { tag_name },
-            attributes: [],
+            attributes: ["tag_name"],
           },
           order: [['action', 'DESC']], 
           limit: 10, 

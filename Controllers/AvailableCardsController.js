@@ -1,6 +1,6 @@
 const AvailableCards = require("../Models/AvailableCard");
 const Governorate = require("../Models/Governorate");
-const { validateInput, ErrorResponse } = require("../Utils/validateInput");
+const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 const { client } = require('../Utils/redisClient');
 const multer = require("../Config/Multer");
 

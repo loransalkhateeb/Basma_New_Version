@@ -103,6 +103,10 @@ exports.getAllBlogs = asyncHandler(async (req, res) => {
           model: Department,
           attributes: ["title", "price"],
         },
+        {
+          model: Tag,
+          attributes: ["tag_name"],
+        },
       ],
     });
 
@@ -220,5 +224,32 @@ exports.getLastThreeBlogs = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: error.message });
+  }
+});
+exports.updateActionBlogs = asyncHandler(async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action } = req.body;
+
+    if (!["approved", "not approved"].includes(action)) {
+      return res.status(400).json(ErrorResponse("Invalid action value", ["Invalid action"]));
+    }
+
+    const blog = await Blog.findByPk(id);
+    if (!blog) {
+      return res.status(404).json(ErrorResponse("blog not found", [`No blog with ID: ${id}`]));
+    }
+
+    await blog.update({ action });
+
+    await client.setEx(`blog:${id}`, 3600, JSON.stringify(blog));
+
+    res.status(200).json({
+      message: "blog action updated successfully",
+      data: blog,
+    });
+  } catch (error) {
+    console.error("Error updating blog action:", error.message);
+    res.status(500).json(ErrorResponse("Error updating blog action", [error.message]));
   }
 });
