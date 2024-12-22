@@ -18,7 +18,7 @@ router.post('/register',upload.single('img'), register);
 router.post('/CreateUser',upload.single('img'), UserController.createUser);
 router.post('/login', login);
 router.post('/logout',logout);
-router.delete('/delete/:id',UserController.deleteStudent);
+router.delete('/deleteStudent/:id',UserController.deleteStudent);
 router.delete('/deleteadmin/:id', UserController.deleteAdmin);
 
 

@@ -64,6 +64,9 @@ exports.register = asyncHandler(async (req, res) => {
   const { name, email, password, confirmPassword, role } = req.body;
   const img = req.file ? req.file.path : "Basma_Academy/lmtsuynf4f1ifrs96qyi";
 
+
+  
+
   const validationErrors = validateInput({
     name,
     email,
@@ -274,7 +277,26 @@ const failedAttempts = {};
 exports.login = async (req, res) => {
   const { email, password, deviceInfo } = req.body;
 
-  if (!deviceInfo) return res.status(400).send('Device information is required');
+
+  if (!email.endsWith("@kasselsoft.com")) {
+    return res.status(400).json({ message: "Email is not authorized for login process" });
+  }
+
+
+  console.log(`Attempted login from IP: ${clientIp}`);
+
+  if (blockedIps.has(clientIp)) {
+    console.log(`Blocked IP: ${clientIp}. Access denied.`);
+    return res.status(403).send("Your IP is blocked due to too many failed login attempts.");
+  }
+
+  const geo = geoip.lookup(clientIp);
+  console.log(`GeoIP Lookup for IP: ${clientIp}`, geo);
+
+  if (!geo || geo.country !== "JO") {
+    console.log(`Access denied for non-Jordan IP: ${clientIp}`);
+    return res.status(403).send("Access is restricted to Jordan IPs only.");
+  }
 
   try {
     const user = await User.findOne({ where: { email } });

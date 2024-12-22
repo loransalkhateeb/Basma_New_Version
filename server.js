@@ -82,10 +82,6 @@ app.use('/contactdynamic',ContactRoutes)
 
 
 
-
-
-
-
 process.on('SIGINT', () => {
   client.quit().then(() => {
     console.log('Redis connection closed');
