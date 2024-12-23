@@ -2,8 +2,9 @@ const { validateInput, ErrorResponse } = require("../Utils/ValidateInput.js");
 const Course = require("../Models/Courses.js");
 const Video = require("../Models/Videos.js");
 const { client } = require("../Utils/redisClient");
-
+const User = require('../Models/UserModel.js')
 const course_users = require("../Models/course_users.js");
+const Payment = require('../Models/PaymentsModel.js')
 
 const { Sequelize } = require("../Config/dbConnect.js");
 const asyncHandler = require("../MiddleWares/asyncHandler.js");
@@ -19,6 +20,7 @@ ffmpeg.setFfprobePath(ffprobePath);
 
 const Teacher = require("../Models/TeacherModel.js");
 const Department = require("../Models/DepartmentModel.js");
+const CommentCourse = require("../Models/CommentCourseModel.js");
 
 
 function getVideoDurationInSeconds(videoPath) {
@@ -50,6 +52,10 @@ function formatDuration(seconds) {
 function calculateTotalDuration(durations) {
   return durations.reduce((total, duration) => total + duration, 0);
 }
+
+
+
+
 exports.addCourse = async (req, res) => {
   try {
     const {
@@ -64,41 +70,21 @@ exports.addCourse = async (req, res) => {
       teacher_id,
     } = req.body;
 
-    // Validation checks
-    // const errors = [];
-    // if (!subject_name || subject_name.length < 3) errors.push("Subject name is required and must be at least 3 characters.");
-    // if (!department_id) errors.push("Department ID is required.");
-    // if (!before_offer) errors.push("Before offer price is required.");
-    // if (!after_offer) errors.push("After offer price is required.");
-    // if (!coupon) errors.push("Coupon is required.");
-    // if (!descr || descr.length < 10) errors.push("Description is required and must be at least 10 characters.");
-    // if (!std_num || std_num < 1) errors.push("Number of students must be greater than 0.");
-    // if (!rating || rating < 1 || rating > 5) errors.push("Rating must be between 1 and 5.");
-    // if (!teacher_id) errors.push("Teacher ID is required.");
-
-    // if (errors.length > 0) {
-    //   return res.status(400).json({
-    //     error: "Validation failed",
-    //     details: errors
-    //   });
-    // }
-
-    // Handling uploaded files
     const titles = req.body["title"] || [];
     const links = req.body["link"] || [];
     const normalizedTitles = Array.isArray(titles) ? titles : [titles];
     const normalizedLinks = Array.isArray(links) ? links : links ? [links] : [];
 
     const img = req.files["img"] ? req.files["img"][0].filename : null;
-    const defaultvideo = req.files["defaultvideo"]
-      ? req.files["defaultvideo"][0].filename
-      : null;
+    const defaultvideo = req.files["defaultvideo"] ? req.files["defaultvideo"][0].filename : null;
     const videoFiles = req.files["url"] || [];
-    const file_book = req.files["file_book"]
-      ? req.files["file_book"][0].filename
-      : null;
+    let file_book = req.files["file_book"] ? req.files["file_book"][0].filename : null;
 
-    // Create new course
+  
+    if (file_book && !file_book.endsWith('.pdf')) {
+      file_book += '.pdf';
+    }
+
     const newCourse = await Course.create({
       subject_name,
       department_id,
@@ -116,7 +102,7 @@ exports.addCourse = async (req, res) => {
 
     const courseId = newCourse.id;
 
-    // Process video files
+   
     const videoFileData = videoFiles.map((file) => ({
       filename: file.filename,
       type: "file",
@@ -134,13 +120,11 @@ exports.addCourse = async (req, res) => {
         if (video.type === "file") {
           const videoPath = `https://res.cloudinary.com/durjqlivi/video/upload/${video.filename}`;
           try {
-            const duration = await getVideoDurationInSeconds(videoPath);
+            const duration = await getVideoDurationInSeconds(videoPath); 
             return { ...video, duration, link: null };
           } catch (err) {
-            console.error(
-              `Error processing video ${video.filename}: ${err.message}`
-            );
-            return { ...video, duration: 0, link: null }; // Handle error gracefully
+            console.error(`Error processing video ${video.filename}: ${err.message}`);
+            return { ...video, duration: 0, link: null }; 
           }
         } else {
           return { ...video, duration: 0, link: video.filename };
@@ -148,13 +132,9 @@ exports.addCourse = async (req, res) => {
       })
     );
 
-    // Calculate total video duration
-    const totalDurationInSeconds = calculateTotalDuration(
-      processedVideoData.filter((v) => v.type === "file").map((v) => v.duration)
-    );
+    const totalDurationInSeconds = processedVideoData.filter((v) => v.type === "file").reduce((acc, v) => acc + v.duration, 0);
     const formattedTotalDuration = formatDuration(totalDurationInSeconds);
 
-    // Save video records
     const videoValues = processedVideoData.map((video, index) => [
       courseId,
       normalizedTitles[index] || "Untitled",
@@ -175,9 +155,8 @@ exports.addCourse = async (req, res) => {
       }))
     );
 
-    // Update total video duration in the course
     await newCourse.update({
-      total_video_duration: formattedTotalDuration || "0h 0m 0s", // Ensure it's not null
+      total_video_duration: formattedTotalDuration || "0h 0m 0s", 
     });
 
     res.status(201).json({
@@ -188,11 +167,15 @@ exports.addCourse = async (req, res) => {
     console.error(error);
     res.status(500).json({
       error: "Failed to add course",
-      message:
-        "An error occurred while adding the course. Please try again later.",
+      message: "An error occurred while adding the course. Please try again later.",
     });
   }
 };
+
+
+
+
+
 // exports.addCourse = async (req, res) => {
 //   try {
 //     const {
@@ -376,33 +359,52 @@ exports.getCourseById = async (req, res) => {
   }
 };
 
-exports.deleteCourse = async (req, res) => {
+
+
+
+
+exports.deleteCourse = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).json({ error: "ID is required" });
+  }
+
   try {
-    const { id } = req.params;
-    const course = await Course.findByPk(id);
-    if (!course) {
-      return res
-        .status(404)
-        .json(
-          ErrorResponse("Course not found", [
-            `No course found with the given ID: ${id}`,
-          ])
-        );
+
+    console.log(`Attempting to delete course with ID: ${id}`);
+
+    await Video.destroy({ where: { course_id: id } });
+    await course_users.destroy({ where: { course_id: id } });
+    await CommentCourse.destroy({ where: { course_id: id } });
+    await Payment.destroy({ where: { course_id: id } });
+
+   
+    const deletedCourse = await Course.destroy({ where: { id: id } });
+    
+    console.log(`Deleted course count: ${deletedCourse}`);
+
+    if (deletedCourse === 0) {
+      return res.status(404).json({ error: "Course not found or already deleted" });
     }
 
-    await course.destroy();
-    res.status(200).json({ message: "Course deleted successfully" });
+    res.json({ message: "Course and all related data deleted successfully" });
+
   } catch (error) {
-    console.error(error);
-    res
-      .status(500)
-      .json(
-        ErrorResponse("Failed to delete course", [
-          "An error occurred while deleting the course.",
-        ])
-      );
+    console.error("Error during deletion:", error);
+    res.status(500).json({ error: error.message });
   }
-};
+});
+
+
+
+
+
+
+
+
+
+
 exports.getCourseVideos = async (req, res) => {
   try {
     const { id } = req.params;
