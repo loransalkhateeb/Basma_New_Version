@@ -6,6 +6,9 @@ const department = require('../Models/DepartmentModel')
 const CommentCourse = require('./CommentCourseModel');
 const course_users = require('../Models/course_users')
 
+
+const User = require('../Models/UserModel')
+
 const courses = sequelize.define('courses', {
     id: {
         type: DataTypes.INTEGER,
@@ -114,7 +117,14 @@ CommentCourse.belongsTo(courses, { foreignKey: 'course_id' });
 course_users.belongsTo(courses, { foreignKey: 'course_id' });
 courses.hasMany(course_users, { foreignKey: 'course_id' });
 
+courses.hasMany(User, {
+    foreignKey: 'course_id',
+  });
 
+  User.belongsTo(courses, {
+    foreignKey: 'user_id',
+  });
+  
 
 module.exports = courses;
 

@@ -14,7 +14,7 @@ router.post('/addCourse',
 
 router.get('/',rateLimit, CoursesController.getcourses);
 router.get('/details/:id',rateLimit, CoursesController.getCourseById);
-router.delete('/delete/:id',rateLimit, CoursesController.deleteCourse);
+router.delete('/deleteCourse/:id',rateLimit, CoursesController.deleteCourse);
 router.get('/videos/:id',rateLimit, CoursesController.getCourseVideos);
 router.delete('/videos/:id',rateLimit, CoursesController.deleteVideoById);
 router.get('/filter/:department_id/:teacher_email',rateLimit, CoursesController.getByDepartmentAndTeacher);

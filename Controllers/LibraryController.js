@@ -9,48 +9,50 @@ const path = require("path");
 
 
 exports.createLibrary = async (req, res) => {
+  try {
+    const { book_name, author, page_num, department_id } = req.body;
 
-    try {
-        const { book_name, author, page_num, department_id } = req.body;
-
-        if (!book_name || !author || !page_num || !department_id || !req.file) {
-            return res.status(400).json(
-                ErrorResponse("Validation failed", [
-                    "All fields (book_name, author, page_num, department_id) are required",
-                ])
-            );
-        }
-        const file_book = req.file.filename;
-
-        if (!req.file) {
-            return res.status(400).json(
-                ErrorResponse("Validation failed", ["File upload is required"])
-            );
-        }
-
-        console.log("Uploaded file details:", req.file);
-
-        const newLibrary = await Library.create({
-            book_name,
-            author,
-            page_num,
-            file_book,
-            department_id,
-        });
-
-        return res.status(201).json({
-            message: 'The Create Library is Successfully',
-            library: newLibrary,
-        });
-    } catch (error) {
-        console.error("Error while creating Library entry:", error);
-        return res.status(500).json(
-            ErrorResponse("Failed to create Library entry", [
-                error.message || "An unexpected error occurred.",
-            ])
-        );
+    
+    if (!book_name || !author || !page_num || !department_id || !req.file) {
+      return res.status(400).json(
+        ErrorResponse("Validation failed", [
+          "All fields (book_name, author, page_num, department_id) are required",
+        ])
+      );
     }
+
+    let file_book = req.file.filename;
+
+    
+    if (file_book && !file_book.endsWith('.pdf')) {
+      file_book += '.pdf';
+    }
+
+    console.log("Uploaded file details:", req.file);
+
+    
+    const newLibrary = await Library.create({
+      book_name,
+      author,
+      page_num,
+      file_book,
+      department_id,
+    });
+
+    return res.status(201).json({
+      message: 'The Create Library is Successfully',
+      library: newLibrary,
+    });
+  } catch (error) {
+    console.error("Error while creating Library entry:", error);
+    return res.status(500).json(
+      ErrorResponse("Failed to create Library entry", [
+        error.message || "An unexpected error occurred.",
+      ])
+    );
+  }
 };
+
 
   
   
@@ -295,39 +297,50 @@ exports.getByDepartment = asyncHandler(async (req, res) => {
   }
 });
 exports.updateLibrary = async (req, res) => {
+  const { id } = req.params;
+  const { book_name, author, page_num, department_id } = req.body;
+  let file_book = req.file?.filename;
+
   try {
-      const { id } = req.params; // Extract book ID
-      const { book_name, author, page_num, department_id } = req.body; // Destructure body fields
-      const file_book = req.file?.filename; // Handle optional file uploads
+    const existingBook = await Library.findByPk(id);
 
-      // Find the existing book by ID
-      const existingBook = await Library.findByPk(id);
+    if (!existingBook) {
+      return res.status(404).json({ error: 'Book not found' });
+    }
 
-      if (!existingBook) {
-          return res.status(404).json({ error: 'Book not found' });
-      }
-console.log(existingBook)
-      // Update the book with provided values or keep existing values
-      const updatedBook = await existingBook.update({
-          book_name: book_name ?? existingBook.book_name,
-          author: author ?? existingBook.author,
-          page_num: page_num ?? existingBook.page_num,
-          file_book: file_book ?? existingBook.file_book,
-          department_id: department_id ?? existingBook.department_id,
-      });
+    const updatedFields = {};
 
-      return res.status(200).json({
-          message: 'Book updated successfully',
-          library: updatedBook,
-      });
+    if (book_name && book_name !== existingBook.book_name) updatedFields.book_name = book_name;
+    if (author && author !== existingBook.author) updatedFields.author = author;
+    if (page_num && page_num !== existingBook.page_num) updatedFields.page_num = page_num;
+    if (department_id && department_id !== existingBook.department_id) updatedFields.department_id = department_id;
+
+    
+    if (file_book && !file_book.endsWith('.pdf')) {
+      file_book += '.pdf';
+    }
+    if (file_book && file_book !== existingBook.file_book) updatedFields.file_book = file_book;
+
+    if (Object.keys(updatedFields).length > 0) {
+      await existingBook.update(updatedFields);
+    }
+
+    return res.status(200).json({
+      message: 'Book updated successfully',
+      library: { ...existingBook.toJSON(), ...updatedFields },
+    });
+
   } catch (error) {
-      console.error('Error updating book:', error.message);
-      return res.status(500).json({
-          error: 'An error occurred while updating the book',
-          details: error.message,
-      });
+    console.error('Error updating book:', error.message);
+    return res.status(500).json({
+      error: 'An error occurred while updating the book',
+      details: error.message,
+    });
   }
 };
+
+
+
 
 
 // exports.updateLibrary = async (req, res) => {
