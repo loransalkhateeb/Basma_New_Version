@@ -4,7 +4,7 @@ const Department = require("../Models/DepartmentModel");
 const asyncHandler = require("../MiddleWares/asyncHandler");
 const nodemailer = require("nodemailer");
 const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
-
+const { client } = require('../Utils/redisClient');
 const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
@@ -206,25 +206,53 @@ exports.updateBlog = asyncHandler(async (req, res) => {
 
 
 
+exports.deleteBlog = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+
 exports.deleteBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const blog = await Blog.findByPk(id);
-  if (!blog) {
-    return res
-      .status(404)
-      .json(
-        new ErrorResponse("Blog not found", ["No blog found with the given ID"])
+
+    const [blog, _] = await Promise.all([
+      Blog.findByPk(id),
+      client.del(`blog:${id}`), 
+    ]);
+
+    if (!blog) {
+      return res.status(404).json(
+        ErrorResponse("Blog not found", [
+          "No blog found with the given ID",
+        ])
       );
+    }
+
+   
+    await Promise.all([
+      Blog.destroy({ where: { id } }), 
+      Tag.destroy({ where: { blog_id: id } }),
+    ]);
+
+    return res.status(200).json({
+      message: "Blog and associated tags deleted successfully",
+    });
+  } catch (error) {
+    console.error("Error in deleteBlog:", error);
+
+    return res.status(500).json(
+      ErrorResponse("Failed to delete Blog entry", [
+        "An internal server error occurred. Please try again later.",
+      ])
+    );
   }
+};
 
-  await blog.destroy();
-  await Tag.destroy({ where: { blog_id: id } });
 
-  res.status(200).json({
-    message: "Blog and associated tags deleted successfully",
-  });
-});
+
+
+
+
 
 exports.getLastThreeBlogs = asyncHandler(async (req, res) => {
   try {

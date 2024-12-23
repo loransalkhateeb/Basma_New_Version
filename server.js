@@ -68,15 +68,12 @@ app.use('/Fqs',FAQRoutes)
 app.use('/Libraries',LibarryRoutes)
 app.use('/WhoWeAre',WhoWeAreRoutes)
 app.use('/Tags',TagRoutes)
-
 app.use('/TeacherRoutes',TeacherRoutes)
 app.use('/users',UsersRoutes)
 app.use('/PaymentsDepartments',PaymentdepartmnetRouter)
 app.use('/PaymentsCourse',PaymentCourseRouter)
 app.use('/Coupons',CouponsRoutes)
 app.use('/commentCourse',CommentCourseRoutes)
-
-
 app.use('/purchasesteps',PurchaseStepsRoutes)
 app.use('/contactdynamic',ContactRoutes)
 
