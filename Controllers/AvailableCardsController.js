@@ -41,7 +41,7 @@ exports.getAllAvailableCards = async (req, res) => {
     }
 
     const availableCards = await AvailableCards.findAll({
-      include: [{ model: Governorate, as: 'governorate', attributes: ['governorate'] }]
+      include: [{ model: Governorate, attributes: ['governorate'] }]
     });
 
     if (availableCards.length === 0) {

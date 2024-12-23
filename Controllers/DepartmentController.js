@@ -1,4 +1,6 @@
+const asyncHandler = require("../MiddleWares/asyncHandler");
 const Department = require("../Models/DepartmentModel");
+const Payment = require("../Models/PaymentsModel");
 const { client } = require('../Utils/redisClient');
 const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 
@@ -121,24 +123,38 @@ exports.updateDepartment = async (req, res) => {
   }
 };
 
-exports.deleteDepartment = async (req, res) => {
-  try {
-    const { id } = req.params;
+exports.deleteDepartment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
 
-    const department = await Department.findByPk(id);
-
-    if (!department) {
-      return res.status(404).json(new ErrorResponse("Department not found", ["No department found with the given id"]));
-    }
-
-    await department.destroy();
-
-   
-    await client.del(`department:${id}`);
-
-    res.status(200).json({ message: "Department deleted successfully" });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json(ErrorResponse("Failed to delete department", ["An error occurred while deleting the department"]));
+  if (!id) {
+    return res.status(400).json({ message: "ID is required" });
   }
-};
+
+  try {
+    // Step 1: Check if there are payments associated with the department
+    const payments = await Payment.findAll({
+      where: { department_id: id },
+      attributes: ['user_id'],
+    });
+
+    const userIds = payments.map(payment => payment.user_id);
+
+    if (req.query.confirm === 'true') {
+      // Step 2: Proceed with deletion if confirmation is provided
+      await Department.destroy({ where: { id } });
+      return res.status(200).json({ message: "Department deleted successfully" });
+    } else {
+      // Step 3: Return payment-related info if no confirmation is provided
+      return res.status(200).json({
+        message: userIds.length > 0 
+          ? "يوجد عمليات شراء على هذا القسم يرجى تأكيد الحذف" 
+          : "هل انت متأكد من حذف هذا القسم",
+        userIds,
+      });
+    }
+  } catch (error) {
+    console.error("Error deleting department:", error);
+    res.status(500).json({ error: "An error occurred" });
+  }
+});
+

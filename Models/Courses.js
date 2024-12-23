@@ -56,11 +56,11 @@ const courses = sequelize.define('courses', {
     },
     std_num:{
         type: DataTypes.STRING,
-        allowNull: false
+        allowNull: true
     },
     rating:{
         type: DataTypes.DECIMAL(2, 1),
-        allowNull: false,
+        allowNull: true,
         validate: {
             min: 1,
             max: 5
