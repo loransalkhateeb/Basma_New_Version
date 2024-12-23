@@ -130,7 +130,7 @@ exports.getBlogById = asyncHandler(async (req, res) => {
     const blog = await Blog.findByPk(id, {
       include: [
         { model: Department, attributes: ['title'] },
-        { model: Tag, attributes: ['tag_name'] },
+        { model: Tag, attributes: ['id','tag_name'] },
       ],
     });
 
@@ -148,15 +148,14 @@ exports.getBlogById = asyncHandler(async (req, res) => {
     );
   }
 });
-
 exports.updateBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { title, author, descr, department_id, tags } = req.body;
 
-  
+  // Handle image upload
   let img = null;
-  if (req.files && req.files["img"]) {
-    img = req.files["img"][0].filename;
+  if (req.file) {
+    img = req.file.filename; // Adjusted for single file uploads
   }
 
   const blog = await Blog.findByPk(id);
@@ -168,14 +167,20 @@ exports.updateBlog = asyncHandler(async (req, res) => {
       );
   }
 
+  // Update blog fields
   blog.title = title || blog.title;
   blog.author = author || blog.author;
   blog.descr = descr || blog.descr;
   blog.department_id = department_id || blog.department_id;
-  blog.img = img || blog.img;
+
+  // Update image only if a new one is uploaded
+  if (img) {
+    blog.img = img;
+  }
 
   await blog.save();
 
+  // Update tags if provided
   if (tags) {
     const tagValues = Array.isArray(tags) ? tags : [tags];
     await Tag.destroy({ where: { blog_id: blog.id } });
@@ -191,6 +196,7 @@ exports.updateBlog = asyncHandler(async (req, res) => {
     blog,
   });
 });
+
 
 
 exports.deleteBlog = asyncHandler(async (req, res) => {
