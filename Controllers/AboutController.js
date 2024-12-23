@@ -1,5 +1,5 @@
 const About = require("../Models/AboutModel");
-const { client } = require('../Utils/redisClient');
+const { client } = require("../Utils/redisClient");
 const { validateInput, ErrorResponse } = require("../Utils/ValidateInput");
 
 exports.createAbout = async (req, res) => {
@@ -9,19 +9,34 @@ exports.createAbout = async (req, res) => {
     if (!title || !descr) {
       return res
         .status(400)
-        .json(ErrorResponse("Validation failed", ["Title and description are required"]));
+        .json(
+          ErrorResponse("Validation failed", [
+            "Title and description are required",
+          ])
+        );
     }
 
     const img = req.file?.filename || null;
 
     const validationErrors = validateInput({ title, descr });
     if (validationErrors.length > 0) {
-      return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
+      return res
+        .status(400)
+        .json(ErrorResponse("Validation failed", validationErrors));
     }
 
-    const newHero = await About.create({ title, descr, img });
+    const newHeroPromise = About.create({ title, descr, img });
 
-    await client.set(`about:${newHero.id}`, JSON.stringify(newHero), { EX: 3600 });
+    const cacheDeletePromises = [client.del(`about:page:1:limit:20`)];
+
+    const [newHero] = await Promise.all([
+      newHeroPromise,
+      ...cacheDeletePromises,
+    ]);
+
+    await client.set(`about:${newHero.id}`, JSON.stringify(newHero), {
+      EX: 3600,
+    });
 
     res.status(201).json({
       message: "About Us created successfully",
@@ -29,31 +44,47 @@ exports.createAbout = async (req, res) => {
     });
   } catch (error) {
     console.error("Error in createAbout:", error.message);
-    res.status(500).json(ErrorResponse("Failed to create Hero", ["An internal server error occurred."]));
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to create Hero", [
+          "An internal server error occurred.",
+        ])
+      );
   }
 };
 
 exports.getAbout = async (req, res) => {
   try {
-    await client.del(`about:all`);
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
 
-    const cachedData = await client.get("about:all");
+    const cacheKey = `about:page:${page}:limit:${limit}`;
+    const cachedData = await client.get(cacheKey);
 
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
     }
 
     const aboutEntries = await About.findAll({
-      attributes: ['id', 'title', 'descr', 'img'],
-      order: [['id', 'DESC']],
+      attributes: ["id", "title", "descr", "img"],
+      order: [["id", "DESC"]],
+      limit: parseInt(limit),
+      offset: parseInt(offset),
     });
 
-    await client.setEx("about:all", 3600, JSON.stringify(aboutEntries));
+    await client.setEx(cacheKey, 3600, JSON.stringify(aboutEntries));
 
     res.status(200).json(aboutEntries);
   } catch (error) {
     console.error("Error in getAbout:", error.message);
-    res.status(500).json(ErrorResponse("Failed to fetch About entries", ["An internal server error occurred."]));
+    res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to fetch About entries", [
+          "An internal server error occurred.",
+        ])
+      );
   }
 };
 
@@ -61,28 +92,51 @@ exports.getAboutById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const cachedData = await client.get(`about:${id}`);
+    const cacheKey = `about:${id}`;
+
+   
+    const cachedData = await client.get(cacheKey);
     if (cachedData) {
+      console.log("Cache hit for about:", id);
       return res.status(200).json(JSON.parse(cachedData));
     }
+    console.log("Cache miss for about:", id);
 
     const aboutEntry = await About.findOne({
-      attributes: ['id', 'title', 'descr', 'img'],
+      attributes: ["id", "title", "descr", "img"], 
       where: { id },
     });
 
+    
     if (!aboutEntry) {
-      return res.status(404).json(ErrorResponse("About entry not found", ["No About entry found with the given id"]));
+      return res
+        .status(404)
+        .json(
+          ErrorResponse("About entry not found", [
+            "No About entry found with the given ID.",
+          ])
+        );
     }
 
-    await client.set(`about:${id}`, JSON.stringify(aboutEntry), { EX: 3600 });
+   
+    await client.setEx(cacheKey, 3600, JSON.stringify(aboutEntry));
 
-    res.status(200).json(aboutEntry);
+    
+    return res.status(200).json(aboutEntry);
   } catch (error) {
-    console.error("Error in getAboutById:", error.message);
-    res.status(500).json(ErrorResponse("Failed to fetch About entry", ["An internal server error occurred."]));
+    console.error("Error in getAboutById:", error);
+
+    
+    return res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to fetch About entry", [
+          "An internal server error occurred. Please try again later.",
+        ])
+      );
   }
 };
+
 
 exports.updateAbout = async (req, res) => {
   try {
@@ -90,52 +144,96 @@ exports.updateAbout = async (req, res) => {
     const { title, descr } = req.body;
     const image = req.file?.filename || null;
 
+   
     const validationErrors = validateInput({ title, descr });
     if (validationErrors.length > 0) {
-      return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
+      return res
+        .status(400)
+        .json(ErrorResponse("Validation failed", validationErrors));
     }
 
+    
     const aboutEntry = await About.findByPk(id);
     if (!aboutEntry) {
-      return res.status(404).json(ErrorResponse("About entry not found", ["No About entry found with the given id"]));
+      return res
+        .status(404)
+        .json(
+          ErrorResponse("About entry not found", [
+            "No About entry found with the given ID.",
+          ])
+        );
     }
 
-    aboutEntry.title = title || aboutEntry.title;
-    aboutEntry.descr = descr || aboutEntry.descr;
-    aboutEntry.img = image || aboutEntry.img;
+    
+    const updatedFields = {};
+    if (title && title !== aboutEntry.title) updatedFields.title = title;
+    if (descr && descr !== aboutEntry.descr) updatedFields.descr = descr;
+    if (image) updatedFields.img = image;
 
-    await aboutEntry.save();
+    
+    if (Object.keys(updatedFields).length > 0) {
+      await aboutEntry.update(updatedFields);
+    }
 
-    await client.setEx(`about:${id}`, 3600, JSON.stringify(aboutEntry));
+   
+    const updatedData = aboutEntry.toJSON();
+    const cacheKey = `about:${id}`;
+    await client.setEx(cacheKey, 3600, JSON.stringify(updatedData));
 
-
-    client.setEx(`about:${id}`, 3600, JSON.stringify(aboutEntry));
-
-    res.status(200).json({
+   
+    return res.status(200).json({
       message: "About entry updated successfully",
-      aboutEntry,
+      aboutEntry: updatedData,
     });
   } catch (error) {
-    console.error("Error in updateAbout:", error.message);
-    res.status(500).json(ErrorResponse("Failed to update About entry", ["An internal server error occurred."]));
+    console.error("Error in updateAbout:", error);
+
+    return res
+      .status(500)
+      .json(
+        ErrorResponse("Failed to update About entry", [
+          "An internal server error occurred. Please try again later.",
+        ])
+      );
   }
 };
+
+
+
+
+
 
 exports.deleteAbout = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const aboutEntry = await About.findByPk(id);
+    const [aboutEntry, _] = await Promise.all([
+      About.findByPk(id),
+      client.del(`about:${id}`), 
+    ]);
+
     if (!aboutEntry) {
-      return res.status(404).json(ErrorResponse("About entry not found", ["No About entry found with the given id"]));
+      return res.status(404).json(
+        ErrorResponse("About entry not found", [
+          "No About entry found with the given ID.",
+        ])
+      );
     }
 
+    
     await aboutEntry.destroy();
-    await client.del(`about:${id}`);
 
-    res.status(200).json({ message: "About entry deleted successfully" });
+    
+    return res.status(200).json({ message: "About entry deleted successfully" });
   } catch (error) {
-    console.error("Error in deleteAbout:", error.message);
-    res.status(500).json(ErrorResponse("Failed to delete About entry", ["An internal server error occurred."]));
+    console.error("Error in deleteAbout:", error);
+
+    return res.status(500).json(
+      ErrorResponse("Failed to delete About entry", [
+        "An internal server error occurred. Please try again later.",
+      ])
+    );
   }
 };
+
+

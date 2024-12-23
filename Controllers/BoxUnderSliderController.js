@@ -34,44 +34,46 @@ exports.addBoxSlider = async (req, res) => {
 
 exports.getBoxSliders = async (req, res) => {
   try {
+    const { page = 1, limit = 20 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const cacheKey = `BoxSlider:page:${page}:limit:${limit}`;
+
+    const cachedData = await client.get(cacheKey);
+    if (cachedData) {
+      return res.status(200).json(JSON.parse(cachedData));
+    }
 
  
-    await client.del("boxslider:all");
+    const boxSliders = await BoxSlider.findAll({
+      attributes: ['id', 'title', 'descr'], 
+      order: [['id', 'DESC']],            
+      limit: parseInt(limit),              
+      offset: parseInt(offset),          
+    });
+
     
+    await client.setEx(cacheKey, 3600, JSON.stringify(boxSliders));
 
-    const data = await client.get("boxslider:all");
-
-    if (data) {
-      return res.status(200).json(JSON.parse(data)); 
-    } else {
-     
-      const boxSliders = await BoxSlider.findAll({
-        attributes: ['id', 'title', 'descr'],
-        order: [['id', 'DESC']], 
-        limit: 10, 
-      });
-
-      
-      await client.setEx("boxslider:all", 3600, JSON.stringify(boxSliders));
-
-      res.status(200).json(boxSliders);
-    }
+  
+    return res.status(200).json(boxSliders);
   } catch (error) {
-    console.error(error);
-    res.status(500).json(ErrorResponse("Failed to fetch BoxSliders", ["An error occurred while fetching the BoxSliders"]));
+    console.error("Error fetching BoxSliders:", error.message);
+    return res.status(500).json(
+      ErrorResponse("Failed to fetch BoxSliders", [
+        "An error occurred while fetching the BoxSliders",
+      ])
+    );
   }
 };
+
 
 exports.getBoxSliderById = async (req, res) => {
   try {
     const { id } = req.params;
 
-
-   
-
     await client.del("boxslider:all");
   
-
     const data = await client.get(`boxslider:${id}`);
 
     if (data) {

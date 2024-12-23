@@ -40,60 +40,67 @@ exports.createBlog = async (req, res) => {
     const { title, author, descr, department_id, tags } = req.body || {};
 
     
-    if (!title || !author || !descr || !department_id || !tags) {
-      return res
-        .status(400)
-        .json(
-          ErrorResponse("Validation failed", [
-            "The All Fields is required Please fill all fields",
-          ])
-        );
+    const processedTags = tags && Array.isArray(tags) ? tags : tags.split(',').map(tag => tag.trim()).filter(Boolean);
+
+    if (!title || !author || !descr || !department_id || !processedTags.length) {
+      return res.status(400).json({
+        error: "Validation failed",
+        message: "All fields are required. Please fill all fields."
+      });
     }
 
-    const img = req.file ? req.file.filename : null;
-
- 
-    const validationErrors = validateInput({
-      title,
-      author,
-      descr,
-      department_id,
-      tags,
-    });
+   
+    const validationErrors = validateInput({ title, author, descr, department_id, tags: processedTags });
     if (validationErrors.length > 0) {
-      return res
-        .status(400)
-        .json(ErrorResponse("Validation failed", validationErrors));
+      return res.status(400).json({
+        error: "Validation failed",
+        message: validationErrors
+      });
     }
 
-    
+   
+    const img = req.file ? req.file.filename : null;
     const newBlog = await Blog.create({
       title,
       author,
       descr,
       department_id,
-      tags,
       img,
     });
 
     
+    const tagsToCreate = await Promise.all(processedTags.map(async (tag) => {
+      const [existingTag] = await Tag.findOrCreate({
+        where: { tag_name: tag },
+        defaults: { tag_name: tag }
+      });
+      return { blog_id: newBlog.id, tag_name: existingTag.tag_name, tag_id: existingTag.id };
+    }));
+
+    
+    await Tag.bulkCreate(tagsToCreate);
+
+   
     sendEmailNotification("New Blog Created", `A new blog titled "${title}" has been created`);
 
+   
     res.status(201).json({
       message: "Blog created successfully",
-      Blog: newBlog,
+      blog: newBlog,
     });
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json(
-        ErrorResponse("Failed to create Blog", [
-          "An error occurred while creating the new Blog. Please try again",
-        ])
-      );
+    res.status(500).json({
+      error: "Failed to create Blog",
+      message: "An error occurred while creating the new Blog. Please try again."
+    });
   }
 };
+
+
+
+
+
 
 exports.getAllBlogs = asyncHandler(async (req, res) => {
   try {
