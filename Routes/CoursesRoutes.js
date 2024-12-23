@@ -16,6 +16,8 @@ router.get('/',rateLimit, CoursesController.getcourses);
 router.get('/details/:id',rateLimit, CoursesController.getCourseById);
 router.delete('/deleteCourse/:id',rateLimit, CoursesController.deleteCourse);
 router.get('/videos/:id',rateLimit, CoursesController.getCourseVideos);
+router.get('/links/:id',CoursesController.getCourseLinks);
+
 router.delete('/videos/:id',rateLimit, CoursesController.deleteVideoById);
 router.get('/filter/:department_id/:teacher_email',rateLimit, CoursesController.getByDepartmentAndTeacher);
 router.put('/:id',
