@@ -168,6 +168,11 @@ const failedAttempts = {};
 //   const { email, password, mfaCode, ip } = req.body;
 //   const clientIp = ip || req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
 
+
+//   if (!email.endsWith("@kasselsoft.com")) {
+//          return res.status(400).json({ message: "Email is not authorized for login process" });
+//        }
+
 //   console.log(`Attempted login from IP: ${clientIp}`);
 
 //   if (blockedIps.has(clientIp)) {
@@ -219,6 +224,32 @@ const failedAttempts = {};
 //       return res.status(400).send("Invalid password");
 //     }
 
+   
+//     if (user.role === "student") {
+//       const token = jwt.sign(
+//         { id: user.id, role: user.role, name: user.name, img: user.img },
+//         SECRET_KEY,
+//         { expiresIn: "20m" }
+//       );
+
+//       await AuditLog.create({
+//         action: "Successful Login",
+//         details: `Login successful for student: ${email} from IP: ${clientIp}`,
+//       });
+
+//       delete failedAttempts[clientIp];
+
+//       return res.status(200).json({
+//         message: "Login successful",
+//         token,
+//         name: user.name,
+//         role: user.role,
+//         id: user.id,
+//         img: user.img,
+//       });
+//     }
+
+    
 //     if (!mfaCode) {
 //       mfaCodeMemory = Math.floor(100000 + Math.random() * 900000);
 //       mfaCodeExpiration = Date.now() + 5 * 60 * 1000;
@@ -270,101 +301,6 @@ const failedAttempts = {};
 //       details: `Error during login for email: ${email} from IP: ${clientIp}. Error: ${err.message}`,
 //     });
 //     res.status(500).send({ message: "Internal Server Error", error: err.message });
-//   }
-// };
-
-
-// exports.login = async (req, res) => {
-//   const { email, password, deviceInfo } = req.body;
-
-
-//   if (!email.endsWith("@kasselsoft.com")) {
-//     return res.status(400).json({ message: "Email is not authorized for login process" });
-//   }
-
-
-//   console.log(`Attempted login from IP: ${clientIp}`);
-
-//   if (blockedIps.has(clientIp)) {
-//     console.log(`Blocked IP: ${clientIp}. Access denied.`);
-//     return res.status(403).send("Your IP is blocked due to too many failed login attempts.");
-//   }
-
-//   const geo = geoip.lookup(clientIp);
-//   console.log(`GeoIP Lookup for IP: ${clientIp}`, geo);
-
-//   if (!geo || geo.country !== "JO") {
-//     console.log(`Access denied for non-Jordan IP: ${clientIp}`);
-//     return res.status(403).send("Access is restricted to Jordan IPs only.");
-//   }
-
-//   try {
-//     const user = await User.findOne({ where: { email } });
-//     if (!user) return res.status(400).send('User not found');
-
-//     const isMatch = await bcrypt.compare(password, user.password);
-//     if (!isMatch) return res.status(400).send('Invalid password');
-
-//     // Retrieve stored device info
-//     const storedDeviceInfo = await User.getDeviceInfo(user.id);
-
-//     if (!storedDeviceInfo) {
-//       // If no device info is stored
-//       if (user.role === 'student') {
-//         // For students, store the device info
-//         await User.updateDeviceInfo(user.id, deviceInfo);
-//         return res.status(200).json({
-//           message: 'تم حفظ معلومات جهازك. سوف تكون قادر على تسجيل الدخول فقط من هذا الجهاز',
-//           token: jwt.sign(
-//             { id: user.id, role: user.role, name: user.name, img: user.img },
-//             SECRET_KEY,
-//             { expiresIn: '1h' }
-//           ),
-//           name: user.name,
-//           role: user.role,
-//           id: user.id,
-//           img: user.img
-//         });
-//       } else {
-//         // For non-students, do not store device info
-//         return res.status(200).json({
-//           message: 'تم تسجيل الدخول بنجاح.',
-//           token: jwt.sign(
-//             { id: user.id, role: user.role, name: user.name, img: user.img },
-//             SECRET_KEY,
-//             { expiresIn: '1h' }
-//           ),
-//           name: user.name,
-//           role: user.role,
-//           id: user.id,
-//           img: user.img
-//         });
-//       }
-//     } else {
-//       // Compare stored device info with incoming device info
-//       if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
-//         return res.status(403).json({
-//           message: 'Login not allowed from this device'
-//         });
-//       }
-
-//       // Generate JWT token for matching device info
-//       const token = jwt.sign(
-//         { id: user.id, role: user.role, name: user.name, img: user.img },
-//         SECRET_KEY,
-//         { expiresIn: '1h' }
-//       );
-
-//       return res.status(200).json({
-//         token,
-//         name: user.name,
-//         role: user.role,
-//         id: user.id,
-//         img: user.img
-//       });
-//     }
-//   } catch (err) {
-//     res.status(500).send(err.message);
 //   }
 // };
 

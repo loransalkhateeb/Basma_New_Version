@@ -75,7 +75,7 @@ router.get('/teachercourse/:teacherEmail',
   TeacherController.getTeacherCoursesByEmail
 );
 
-router.get('/teacher-course/:teacherEmail', 
+router.get('/teacher-course/:id', 
   rateLimiter, 
   TeacherController.getTeacheridandCourseById
 );

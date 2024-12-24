@@ -117,14 +117,6 @@ CommentCourse.belongsTo(courses, { foreignKey: 'course_id' });
 course_users.belongsTo(courses, { foreignKey: 'course_id' });
 courses.hasMany(course_users, { foreignKey: 'course_id' });
 
-courses.hasMany(User, {
-    foreignKey: 'course_id',
-  });
-
-  User.belongsTo(courses, {
-    foreignKey: 'user_id',
-  });
-  
 
 module.exports = courses;
 
