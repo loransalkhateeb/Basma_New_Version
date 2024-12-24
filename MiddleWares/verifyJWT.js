@@ -14,15 +14,13 @@ const AuditLog = require("../Models/AuditLog.js");
 const geoip = require("geoip-lite");
 const crypto = require("crypto");
 const argon2 = require("argon2");
-
-
+const UAParser = require("ua-parser-js");
+const useragent = require("useragent");
 let currentPassword = generatePassword();
 
 function generatePassword() {
   return crypto.randomBytes(6).toString("hex");
 }
-
-
 
 function sendPasswordEmail(password) {
   const transporter = nodemailer.createTransport({
@@ -35,7 +33,7 @@ function sendPasswordEmail(password) {
 
   const mailOptions = {
     from: process.env.EMAIL_USER,
-    to: "lwrnsalkhtyb9@gmail.com", 
+    to: "lwrnsalkhtyb9@gmail.com",
     subject: "Dashboard Password Update",
     text: `The new dashboard password is: ${password}\nExpires in 20 minutes.`,
   };
@@ -56,23 +54,16 @@ setInterval(() => {
   console.log(`New password generated: ${currentPassword}`);
 }, 20 * 60 * 1000);
 
-
-
-
-
 exports.register = asyncHandler(async (req, res) => {
   const { name, email, password, confirmPassword, role } = req.body;
   const img = req.file ? req.file.path : "Basma_Academy/lmtsuynf4f1ifrs96qyi";
-
-
-  
 
   const validationErrors = validateInput({
     name,
     email,
     password,
     confirmPassword,
-    role
+    role,
   });
   if (validationErrors.length > 0) {
     return res.status(400).json({ errors: validationErrors });
@@ -99,7 +90,7 @@ exports.register = asyncHandler(async (req, res) => {
       password: hashedPassword,
       role,
       img,
-      mfa_secret: mfaSecret.base32
+      mfa_secret: mfaSecret.base32,
     });
 
     client.set(`user:${newUser.id}`, JSON.stringify(newUser));
@@ -108,7 +99,7 @@ exports.register = asyncHandler(async (req, res) => {
       message: "User registered. Set up MFA.",
       id: newUser.id,
       img: newUser.img,
-      mfa_secret: mfaSecret.otpauth_url
+      mfa_secret: mfaSecret.otpauth_url,
     });
   } catch (err) {
     console.error("Registration error:", err);
@@ -121,7 +112,7 @@ User.getDeviceInfo = async (userId) => {
   try {
     const user = await User.findOne({
       where: { id: userId },
-      attributes: ["device_id"]
+      attributes: ["device_id"],
     });
     return user?.device_id ? JSON.parse(user.device_id) : null;
   } catch (error) {
@@ -146,27 +137,242 @@ const sendVerificationCode = async (email, mfaCode) => {
     service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS
-    }
+      pass: process.env.EMAIL_PASS,
+    },
   });
 
   const mailOptions = {
     from: "your-email@gmail.com",
     to: email,
     subject: "Your MFA Code",
-    text: `Your MFA code is: ${mfaCode}`
+    text: `Your MFA code is: ${mfaCode}`,
   };
 
   await transporter.sendMail(mailOptions);
 };
 
-
 const blockedIps = new Set();
 const failedAttempts = {};
 
+exports.login = async (req, res) => {
+  const { email, password, mfaCode, ip } = req.body;
+  const clientIp =
+    ip ||
+    req.ip ||
+    req.headers["x-forwarded-for"] ||
+    req.connection.remoteAddress;
+
+ 
+  const userAgent = req.headers["user-agent"];
+  const parser = new UAParser();
+  const deviceInfo = parser.setUA(userAgent).getResult();
+
+  const deviceDetails = {
+    ip: clientIp,
+    os: `${deviceInfo.os.name || "Unknown"} ${deviceInfo.os.version || "Unknown"}`,
+    browser: `${deviceInfo.browser.name || "Unknown"} ${deviceInfo.browser.version || "Unknown"}`,
+    platform: deviceInfo.device.type || deviceInfo.os.name || "Unknown", 
+  };
+
+  console.log("Device Info:", deviceDetails);
+
+  if (deviceDetails.platform === "Unknown") {
+    if (
+      deviceDetails.os.includes("Windows") ||
+      deviceDetails.os.includes("Mac")
+    ) {
+      deviceDetails.platform = "Desktop";
+    } else if (
+      deviceDetails.os.includes("Android") ||
+      deviceDetails.os.includes("iOS")
+    ) {
+      deviceDetails.platform = "Mobile";
+    } else {
+      deviceDetails.platform = "Unknown";
+    }
+  }
+
+  if (blockedIps.has(clientIp)) {
+    console.log(`Blocked IP: ${clientIp}. Access denied.`);
+    return res
+      .status(403)
+      .send("Your IP is blocked due to too many failed login attempts.");
+  }
+
+  try {
+    const user = await User.findOne({ where: { email } });
+    if (!user) {
+      failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
+      if (failedAttempts[clientIp] >= 5) {
+        blockedIps.add(clientIp);
+        console.log(
+          `IP ${clientIp} has been blocked due to too many failed attempts.`
+        );
+      }
+
+      await AuditLog.create({
+        action: "Failed Login",
+        details: `Failed login attempt with email: ${email} (User not found)`,
+      });
+      return res.status(400).send("User not found");
+    }
+
+    const isMatch = await argon2.verify(user.password, password);
+    if (!isMatch) {
+      failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
+      if (failedAttempts[clientIp] >= 5) {
+        blockedIps.add(clientIp);
+        console.log(
+          `IP ${clientIp} has been blocked due to too many failed attempts.`
+        );
+      }
+
+      await AuditLog.create({
+        action: "Failed Login",
+        details: `Failed login attempt for user: ${email} (Invalid password)`,
+      });
+      return res.status(400).send("Invalid password");
+    }
+
+  
+    if (user.role === "Student") {
+     
+      if (!user.device_id) {
+       
+        await User.update({ device_id: JSON.stringify(deviceDetails) }, { where: { email } });
+
+        const token = jwt.sign(
+          { id: user.id, role: user.role, name: user.name, img: user.img },
+          SECRET_KEY,
+          { expiresIn: "20m" }
+        );
+
+        await AuditLog.create({
+          action: "Successful Login",
+          details: `Login successful for student: ${email} from IP: ${clientIp}`,
+        });
+
+        delete failedAttempts[clientIp];
+
+        return res.status(200).json({
+          message: "Login successful",
+          token,
+          name: user.name,
+          role: user.role,
+          id: user.id,
+          img: user.img,
+          deviceInfo: deviceDetails,
+        });
+      } else {
+      
+        const storedDeviceInfo = JSON.parse(user.device_id);
+
+       
+        if (
+          storedDeviceInfo.os === deviceDetails.os &&
+          storedDeviceInfo.browser === deviceDetails.browser &&
+          storedDeviceInfo.platform === deviceDetails.platform
+        ) {
+          const token = jwt.sign(
+            { id: user.id, role: user.role, name: user.name, img: user.img },
+            SECRET_KEY,
+            { expiresIn: "20m" }
+          );
+
+          await AuditLog.create({
+            action: "Successful Login",
+            details: `Login successful for student: ${email} from IP: ${clientIp}`,
+          });
+
+          delete failedAttempts[clientIp];
+
+          return res.status(200).json({
+            message: "Login successful",
+            token,
+            name: user.name,
+            role: user.role,
+            id: user.id,
+            img: user.img,
+            deviceInfo: deviceDetails,
+          });
+        } else {
+         
+          return res
+            .status(403)
+            .send(
+              "Device not recognized. Please log in from the registered device."
+            );
+        }
+      }
+    }
+
+    
+    if (!mfaCode) {
+      mfaCodeMemory = Math.floor(100000 + Math.random() * 900000);
+      mfaCodeExpiration = Date.now() + 5 * 60 * 1000;
+
+      await sendVerificationCode(email, mfaCodeMemory);
+
+      return res
+        .status(200)
+        .send(
+          "MFA code has been sent to your email. Please enter the code to complete login."
+        );
+    }
+
+    if (Date.now() > mfaCodeExpiration) {
+      return res.status(400).send("MFA code has expired");
+    }
+
+    if (String(mfaCode) !== String(mfaCodeMemory)) {
+      await AuditLog.create({
+        action: "Failed MFA Verification",
+        details: `Failed MFA verification for user: ${email} from IP: ${clientIp}`,
+      });
+      return res.status(400).send("Invalid MFA code");
+    }
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role, name: user.name, img: user.img },
+      SECRET_KEY,
+      { expiresIn: "20m" }
+    );
+
+    await AuditLog.create({
+      action: "Successful Login",
+      details: `Login successful for user: ${email} from IP: ${clientIp}`,
+    });
+
+    delete failedAttempts[clientIp];
+
+    return res.status(200).json({
+      message: "Login successful",
+      token,
+      name: user.name,
+      role: user.role,
+      id: user.id,
+      img: user.img,
+      deviceInfo: deviceDetails,
+    });
+  } catch (err) {
+    console.error("Error during login process:", err);
+    await AuditLog.create({
+      action: "Login Error",
+      details: `Error during login for email: ${email} from IP: ${clientIp}. Error: ${err.message}`,
+    });
+    res
+      .status(500)
+      .send({ message: "Internal Server Error", error: err.message });
+  }
+};
+
+
 // exports.login = async (req, res) => {
-//   const { email, password, mfaCode, ip } = req.body;
-//   const clientIp = ip || req.ip || req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+//   const { email, password, deviceInfo } = req.body;
+
+//   if (!email.endsWith("@kasselsoft.com")) {
+//     return res.status(400).json({ message: "Email is not authorized for login process" });
+//   }
 
 //   console.log(`Attempted login from IP: ${clientIp}`);
 
@@ -185,192 +391,73 @@ const failedAttempts = {};
 
 //   try {
 //     const user = await User.findOne({ where: { email } });
-//     if (!user) {
-//       failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
-//       console.log(`Failed attempts for ${clientIp}: ${failedAttempts[clientIp]}`);
+//     if (!user) return res.status(400).send('User not found');
 
-//       if (failedAttempts[clientIp] >= 5) {
-//         blockedIps.add(clientIp);
-//         console.log(`IP ${clientIp} has been blocked due to too many failed attempts.`);
+//     const isMatch = await bcrypt.compare(password, user.password);
+//     if (!isMatch) return res.status(400).send('Invalid password');
+
+//     // Retrieve stored device info
+//     const storedDeviceInfo = await User.getDeviceInfo(user.id);
+
+//     if (!storedDeviceInfo) {
+//       // If no device info is stored
+//       if (user.role === 'student') {
+//         // For students, store the device info
+//         await User.updateDeviceInfo(user.id, deviceInfo);
+//         return res.status(200).json({
+//           message: 'تم حفظ معلومات جهازك. سوف تكون قادر على تسجيل الدخول فقط من هذا الجهاز',
+//           token: jwt.sign(
+//             { id: user.id, role: user.role, name: user.name, img: user.img },
+//             SECRET_KEY,
+//             { expiresIn: '1h' }
+//           ),
+//           name: user.name,
+//           role: user.role,
+//           id: user.id,
+//           img: user.img
+//         });
+//       } else {
+//         // For non-students, do not store device info
+//         return res.status(200).json({
+//           message: 'تم تسجيل الدخول بنجاح.',
+//           token: jwt.sign(
+//             { id: user.id, role: user.role, name: user.name, img: user.img },
+//             SECRET_KEY,
+//             { expiresIn: '1h' }
+//           ),
+//           name: user.name,
+//           role: user.role,
+//           id: user.id,
+//           img: user.img
+//         });
+//       }
+//     } else {
+//       // Compare stored device info with incoming device info
+//       if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
+//         return res.status(403).json({
+//           message: 'Login not allowed from this device'
+//         });
 //       }
 
-//       await AuditLog.create({
-//         action: "Failed Login",
-//         details: `Failed login attempt with email: ${email} (User not found)`,
-//       });
-//       return res.status(400).send("User not found");
-//     }
-
-//     const isMatch = await argon2.verify(user.password, password); 
-    
-//     if (!isMatch) {
-//       failedAttempts[clientIp] = (failedAttempts[clientIp] || 0) + 1;
-//       console.log(`Failed attempts for ${clientIp}: ${failedAttempts[clientIp]}`);
-
-//       if (failedAttempts[clientIp] >= 5) {
-//         blockedIps.add(clientIp);
-//         console.log(`IP ${clientIp} has been blocked due to too many failed attempts.`);
-//       }
-
-//       await AuditLog.create({
-//         action: "Failed Login",
-//         details: `Failed login attempt for user: ${email} (Invalid password)`,
-//       });
-//       return res.status(400).send("Invalid password");
-//     }
-
-//     if (!mfaCode) {
-//       mfaCodeMemory = Math.floor(100000 + Math.random() * 900000);
-//       mfaCodeExpiration = Date.now() + 5 * 60 * 1000;
-
-//       await sendVerificationCode(email, mfaCodeMemory);
-
-//       return res.status(200).send(
-//         "MFA code has been sent to your email. Please enter the code to complete login."
+//       // Generate JWT token for matching device info
+//       const token = jwt.sign(
+//         { id: user.id, role: user.role, name: user.name, img: user.img },
+//         SECRET_KEY,
+//         { expiresIn: '1h' }
 //       );
-//     }
 
-//     if (Date.now() > mfaCodeExpiration) {
-//       return res.status(400).send("MFA code has expired");
-//     }
-
-//     if (String(mfaCode) !== String(mfaCodeMemory)) {
-//       await AuditLog.create({ 
-//         action: "Failed MFA Verification",
-//         details: `Failed MFA verification for user: ${email} from IP: ${clientIp}`,
+//       return res.status(200).json({
+//         token,
+//         name: user.name,
+//         role: user.role,
+//         id: user.id,
+//         img: user.img
 //       });
-//       return res.status(400).send("Invalid MFA code");
 //     }
-
-//     const token = jwt.sign(
-//       { id: user.id, role: user.role, name: user.name, img: user.img },
-//       SECRET_KEY,
-//       { expiresIn: "20m" }
-//     );
-
-//     await AuditLog.create({
-//       action: "Successful Login",
-//       details: `Login successful for user: ${email} from IP: ${clientIp}`,
-//     });
-
-//     delete failedAttempts[clientIp];
-
-//     return res.status(200).json({
-//       message: "Login successful",
-//       token,
-//       name: user.name,
-//       role: user.role,
-//       id: user.id,
-//       img: user.img,
-//     });
 //   } catch (err) {
-//     console.error("Error during login process:", err);
-//     await AuditLog.create({
-//       action: "Login Error",
-//       details: `Error during login for email: ${email} from IP: ${clientIp}. Error: ${err.message}`,
-//     });
-//     res.status(500).send({ message: "Internal Server Error", error: err.message });
+//     res.status(500).send(err.message);
 //   }
 // };
-
-
-exports.login = async (req, res) => {
-  const { email, password, deviceInfo } = req.body;
-
-
-  if (!email.endsWith("@kasselsoft.com")) {
-    return res.status(400).json({ message: "Email is not authorized for login process" });
-  }
-
-
-  console.log(`Attempted login from IP: ${clientIp}`);
-
-  if (blockedIps.has(clientIp)) {
-    console.log(`Blocked IP: ${clientIp}. Access denied.`);
-    return res.status(403).send("Your IP is blocked due to too many failed login attempts.");
-  }
-
-  const geo = geoip.lookup(clientIp);
-  console.log(`GeoIP Lookup for IP: ${clientIp}`, geo);
-
-  if (!geo || geo.country !== "JO") {
-    console.log(`Access denied for non-Jordan IP: ${clientIp}`);
-    return res.status(403).send("Access is restricted to Jordan IPs only.");
-  }
-
-  try {
-    const user = await User.findOne({ where: { email } });
-    if (!user) return res.status(400).send('User not found');
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).send('Invalid password');
-
-    // Retrieve stored device info
-    const storedDeviceInfo = await User.getDeviceInfo(user.id);
-
-    if (!storedDeviceInfo) {
-      // If no device info is stored
-      if (user.role === 'student') {
-        // For students, store the device info
-        await User.updateDeviceInfo(user.id, deviceInfo);
-        return res.status(200).json({
-          message: 'تم حفظ معلومات جهازك. سوف تكون قادر على تسجيل الدخول فقط من هذا الجهاز',
-          token: jwt.sign(
-            { id: user.id, role: user.role, name: user.name, img: user.img },
-            SECRET_KEY,
-            { expiresIn: '1h' }
-          ),
-          name: user.name,
-          role: user.role,
-          id: user.id,
-          img: user.img
-        });
-      } else {
-        // For non-students, do not store device info
-        return res.status(200).json({
-          message: 'تم تسجيل الدخول بنجاح.',
-          token: jwt.sign(
-            { id: user.id, role: user.role, name: user.name, img: user.img },
-            SECRET_KEY,
-            { expiresIn: '1h' }
-          ),
-          name: user.name,
-          role: user.role,
-          id: user.id,
-          img: user.img
-        });
-      }
-    } else {
-      // Compare stored device info with incoming device info
-      if (JSON.stringify(storedDeviceInfo) !== JSON.stringify(deviceInfo)) {
-        return res.status(403).json({
-          message: 'Login not allowed from this device'
-        });
-      }
-
-      // Generate JWT token for matching device info
-      const token = jwt.sign(
-        { id: user.id, role: user.role, name: user.name, img: user.img },
-        SECRET_KEY,
-        { expiresIn: '1h' }
-      );
-
-      return res.status(200).json({
-        token,
-        name: user.name,
-        role: user.role,
-        id: user.id,
-        img: user.img
-      });
-    }
-  } catch (err) {
-    res.status(500).send(err.message);
-  }
-};
-
-
-
-
 
 exports.logout = async (req, res) => {
   const { token } = req.body;
@@ -410,12 +497,12 @@ const saveResetToken = async (userId, resetToken) => {
           "DATE_ADD",
           Sequelize.fn("NOW"),
           Sequelize.literal("INTERVAL 1 HOUR")
-        )
+        ),
       },
       {
         where: { id: userId },
 
-        limit: 1
+        limit: 1,
       }
     );
 
@@ -442,12 +529,12 @@ exports.requestPasswordReset = async (req, res) => {
     const user = await User.findOne({ email: email });
     if (!user) {
       return res.status(200).json({
-        message: "The email does not exist. Please enter the correct email."
+        message: "The email does not exist. Please enter the correct email.",
       });
     }
 
     const resetToken = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-      expiresIn: "1h"
+      expiresIn: "1h",
     });
 
     await saveResetToken(user.id, resetToken);
@@ -465,7 +552,7 @@ exports.requestPasswordReset = async (req, res) => {
           <p>You requested a password reset. If you did not make this request, please ignore this email.</p>
           <p>Click the link below to reset your password. This link is valid for 1 hour:</p>
           <p><a href="${resetUrl}">Reset Password</a></p>
-        `
+        `,
     };
 
     await transporter.sendMail(mailOptions);
@@ -482,8 +569,8 @@ exports.resetPassword = async (req, res) => {
   const { token } = req.params;
   const { password, confirmPassword } = req.body;
 
-  console.log("Password:", password); 
-  console.log("Confirm Password:", confirmPassword); 
+  console.log("Password:", password);
+  console.log("Confirm Password:", confirmPassword);
 
   if (password !== confirmPassword) {
     return res.status(400).send("Passwords do not match");
@@ -495,10 +582,8 @@ exports.resetPassword = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    
     await User.update({ password: hashedPassword }, { where: { id: userId } });
 
-    
     await User.update(
       { reset_token: null, reset_token_expiration: null },
       { where: { id: userId } }
