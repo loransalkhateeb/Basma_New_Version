@@ -55,7 +55,7 @@ Department.hasOne(Blog, {
 });
 
 
-Blog.hasOne(Tag, { foreignKey: 'blog_id' });
+Blog.hasMany(Tag, { foreignKey: 'blog_id' });
 Tag.belongsTo(Blog, { foreignKey: 'blog_id' });
 
 Blog.hasMany(CommentBlog, { foreignKey: "blog_id" });
