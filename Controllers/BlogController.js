@@ -229,6 +229,7 @@ exports.deleteBlog = asyncHandler(async (req, res) => {
     }
 
    
+    
     await Promise.all([
       Blog.destroy({ where: { id } }), 
       Tag.destroy({ where: { blog_id: id } }),

@@ -227,14 +227,10 @@ function formatDuration(seconds) {
     }
   
     try {
-      
       const teacher = await Teacher.findOne({ where: { email } });
       if (!teacher) {
         return res.status(400).json({ error: "Invalid email" });
       }
-  
-      
-      const transaction = await sequelize.transaction();
   
       
       const course = await Course.create({
@@ -250,13 +246,12 @@ function formatDuration(seconds) {
         img,
         defaultvideo,
         file_book,
-      }, { transaction });
+      });
   
-      
       const titles = req.body["title"] || [];
       const videos = Array.isArray(req.files["url"]) ? req.files["url"] : [];
       const normalizedTitles = Array.isArray(titles) ? titles : (titles ? [titles] : []);
-    
+  
       const videoFileData = videos.map((file) => ({
         filename: file.filename,
         type: 'file',
@@ -269,7 +264,6 @@ function formatDuration(seconds) {
   
       const videoData = [...videoFileData, ...videoLinkData];
   
-      
       const processedVideoData = await Promise.all(videoData.map(async (video) => {
         if (video.type === 'file') {
           const videoPath = `./images/${video.filename}`; 
@@ -285,7 +279,6 @@ function formatDuration(seconds) {
         .map(v => v.duration));
       const formattedTotalDuration = formatDuration(totalDurationInSeconds);
   
-      
       const videoValues = processedVideoData.map((video, index) => [
         course.id,
         normalizedTitles[index] || "Untitled", 
@@ -295,18 +288,13 @@ function formatDuration(seconds) {
         formatDuration(video.duration || 0),
       ]);
   
-      await Video.bulkCreate(videoValues, { transaction });
+      await Video.bulkCreate(videoValues); 
   
       
-      await course.update({ total_video_duration: formattedTotalDuration }, { transaction });
+      await course.update({ total_video_duration: formattedTotalDuration });
   
-      
-      await transaction.commit();
-  
-      
       await client.del('courses'); 
   
-      
       return res.status(200).json({
         message: "Course and videos added successfully",
         totalDuration: formattedTotalDuration,
@@ -315,18 +303,13 @@ function formatDuration(seconds) {
     } catch (err) {
       console.error("Error adding course and videos:", err.message);
   
-      
-      if (transaction) {
-        await transaction.rollback();
-      }
-  
-      
       return res.status(500).json({
         error: "Error adding course",
         message: err.message,
       });
     }
-});
+  });
+  
 
 
 
