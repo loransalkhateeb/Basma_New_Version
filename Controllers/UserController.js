@@ -99,7 +99,6 @@ exports.findByEmail = async (email) => {
       });
   
       if (cachedUser) {
-        console.log("User fetched from Redis cache");
         return cachedUser;
       }
   

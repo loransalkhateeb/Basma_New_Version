@@ -97,10 +97,8 @@ exports.getAboutById = async (req, res) => {
    
     const cachedData = await client.get(cacheKey);
     if (cachedData) {
-      console.log("Cache hit for about:", id);
       return res.status(200).json(JSON.parse(cachedData));
     }
-    console.log("Cache miss for about:", id);
 
     const aboutEntry = await About.findOne({
       attributes: ["id", "title", "descr", "img"], 

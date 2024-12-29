@@ -15,11 +15,19 @@ module.exports = (req, res, next) => {
 
 
 const authorizeAdmin = (req, res, next) => {
-  if (req.user.user_type_id !== 1) { 
+  if (req.user.role === 'Student') {
     return res.status(403).json({
-      error: req.body.lang === 'en' ? 'You are not authorized to delete users' : 'أنت غير مخول لحذف المستخدمين',
+      error: req.body.lang === 'en' ? 'Students are not authorized to access the Dashboard' : 'الطلاب غير مخولين للوصول الى الداشبوورد',
     });
   }
 
-  next();
+ 
+  if (req.user.role !== 'Admin' && req.user.role !== 'Teacher') { 
+    return res.status(403).json({
+      error: req.body.lang === 'en' ? 'You are not authorized to access the Dashboard' : 'انت غير مخول للوصول الى الداشبوورد',
+    });
+  }
+
+ 
+  next();
 };

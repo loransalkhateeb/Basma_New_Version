@@ -7,7 +7,7 @@ const CommentCourse = require('./CommentCourseModel');
 const course_users = require('../Models/course_users')
 
 
-const User = require('../Models/UserModel')
+
 
 const courses = sequelize.define('courses', {
     id: {

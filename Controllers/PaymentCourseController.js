@@ -103,9 +103,6 @@ exports.buyCourse = asyncHandler(async (req, res) => {
       coupon_id: coupon.id,
       user_id,
     });
-
-    console.log(`The Course id is: ${course_id}`);  
-
    
     await coupon.update({ used: true });
 

@@ -32,15 +32,6 @@ exports.addCoupon = asyncHandler(async (req, res) => {
     return res.status(400).json({ message: "Invalid course ID" });
   }
 
-  console.log("Creating coupon with data:", {
-    coupon_code,
-    coupon_type,
-    expiration_date,
-    department_id,
-    course_id,
-    used,
-  });
-
   const newCoupon = await Coupon.create({
     coupon_code,
     coupon_type,
@@ -49,8 +40,6 @@ exports.addCoupon = asyncHandler(async (req, res) => {
     course_id: course_id || null,
     used,
   });
-
-  console.log("Created coupon:", newCoupon);
 
   await client.set(
     `coupon:${coupon_code}`,

@@ -155,13 +155,9 @@ exports.buyDepartment = asyncHandler(async (req, res) => {
       payment_id: payment.id,
       payment_status: "approved",
     }));
-
-    console.log("Records to insert:", courseUserRecords);
-
     const result = await CourseUser.bulkCreate(courseUserRecords, {
       returning: true,
     });
-    console.log("Inserted records:", JSON.stringify(result, null, 2));
 
     await client.del("payments");
     await client.del("departments");
@@ -234,45 +230,6 @@ exports.getPaymentData = async (req, res) => {
     });
   }
 };
-// exports.deleteCourseUsers = asyncHandler(async (req, res) => {
-//   const { payment_id } = req.params;
-
-//   if (!payment_id) {
-//     return res.status(400).json({ error: "payment_id is required" });
-//   }
-
-//   try {
-//     // Debugging: Check if records exist
-//     const courseUsersToDelete = await CourseUser.findAll({ where: { payment_id } });
-//     const paymentsToDelete = await Payment.findAll({ where: { id: payment_id } });
-
-//     console.log("CourseUsers to delete:", courseUsersToDelete);
-//     console.log("Payments to delete:", paymentsToDelete);
-
-//     if (courseUsersToDelete.length === 0 && paymentsToDelete.length === 0) {
-//       return res.status(404).json({ error: "No records found for the given payment_id" });
-//     }
-
-//     // Delete related course users
-//     const courseUsersDeleted = await CourseUser.destroy({ where: { payment_id } });
-//     console.log("CourseUsers deleted:", courseUsersDeleted);
-
-//     // Delete the payment record
-//     const paymentsDeleted = await Payment.destroy({ where: { id: payment_id } });
-//     console.log("Payments deleted:", paymentsDeleted);
-
-//     // Clear Redis cache
-//     await client.del("courseUsers");
-//     await client.del("payments");
-
-//     res.json({ message: "Course_users and payments deleted successfully" });
-//   } catch (error) {
-//     console.error("Error deleting records:", error.message);
-//     res.status(500).json({ error: "Failed to delete records", message: error.message });
-//   }
-// });
-
-
 
 exports.deleteCourseUsers = asyncHandler(async (req, res) => {
   const { payment_id } = req.params;
@@ -281,7 +238,6 @@ exports.deleteCourseUsers = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: "payment_id is required" });
   }
   const usersToDelete = await CourseUser.findAll({ where: { payment_id } });
-  console.log("Users to delete:", usersToDelete);
   
   await CourseUser.destroy({ where: { payment_id } });
 
