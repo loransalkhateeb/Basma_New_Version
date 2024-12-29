@@ -6,7 +6,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary, 
   params: {
     folder: 'Basma_Academy',  
-    allowed_formats: ['jpg', 'png', 'mp4', 'avi', 'mkv', 'pdf', 'doc', 'docx', 'txt'],  
+    allowed_formats: ['jpg', 'png', 'mp4', 'avi', 'mkv', 'pdf', 'doc', 'docx', 'txt','webp'],  
     resource_type: 'auto',  
   },
 });

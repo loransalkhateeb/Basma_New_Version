@@ -6,7 +6,10 @@ const ffmpeg = require('fluent-ffmpeg');
 const Department = require('../Models/DepartmentModel')
 const Course = require('../Models/Courses')
 const Video = require('../Models/Videos')
-const {Sequelize} = require('../Config/dbConnect.js') 
+const {Sequelize} = require('../Config/dbConnect.js'); 
+const course_users = require('../Models/course_users.js');
+const CommentCourse = require('../Models/CommentCourseModel.js');
+const Payment = require('../Models/PaymentsModel.js');
 
 exports.addTeacherAndCourses = asyncHandler(async (req, res, next) => {
     const { teacher_name, descr, email, department_id } = req.body;
@@ -95,7 +98,6 @@ exports.getTeacherById = asyncHandler(async (req, res, next) => {
   
     const cachedTeacher = await client.get(`teacher:${id}`);
     if (cachedTeacher) {
-        console.log('Returning teacher from cache');
         return res.status(200).json(JSON.parse(cachedTeacher)); 
     }
   
@@ -138,7 +140,6 @@ exports.getTeacher = asyncHandler(async (req, res, next) => {
       
       const cachedTeachers = await client.get('teachers');
       if (cachedTeachers) {
-        console.log('Returning teachers data from cache');
         return res.json(JSON.parse(cachedTeachers));  
       }
   
@@ -178,10 +179,16 @@ exports.getTeacher = asyncHandler(async (req, res, next) => {
       });
     });
   }
-  const ffmpegPath =  './ffmpeg/bin/ffmpeg-6.1-win-64/ffmpeg'
-const ffprobePath = './ffmpeg/bin/ffprobe-6.1-win-64/ffprobe'
+const ffmpegPath =
+  "C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffmpeg";
+const ffprobePath =
+  "C:\\Users\\Admin\\Desktop\\New Ba9ma\\Basma_New_Version\\ffmpeg\\bin\\ffprobe-6.1-win-64\\ffprobe";
+// const ffmpegPath ='/usr/bin/ffmpeg'; // Default to Linux path
+// const ffprobePath = '/usr/bin/ffprobe'; // Default to Linux path
+
 ffmpeg.setFfmpegPath(ffmpegPath);
 ffmpeg.setFfprobePath(ffprobePath);
+
 
 
 function formatDuration(seconds) {
@@ -197,9 +204,7 @@ function formatDuration(seconds) {
     return durations.reduce((total, duration) => total + duration, 0);
   }
 
-
-
-  exports.teacherAddCourse = asyncHandler(async (req, res, next) => {
+  exports.teacherAddCourse = async (req, res) => {
     const {
       subject_name,
       department_id,
@@ -209,7 +214,6 @@ function formatDuration(seconds) {
       descr,
       std_num,
       rating,
-      teacher_id,
       email,
     } = req.body;
   
@@ -217,22 +221,23 @@ function formatDuration(seconds) {
     const defaultvideo = req.files["defaultvideo"] ? req.files["defaultvideo"][0].filename : null;
     const links = req.body["link"] || [];
     const normalizedLinks = Array.isArray(links) ? links : (links ? [links] : []);
-    const file_book = req.files["file_book"] ? req.files["file_book"][0].filename : null; 
-  
+    const file_book = req.files["file_book"] ? req.files["file_book"][0].filename : null; // Handle file book  
     if (!subject_name) {
-      return res.status(400).json({
+      return res.status(400).send({
         error: "Failed to add course",
         message: "Subject name cannot be null or empty",
       });
     }
   
     try {
+      // Find the teacher by email
       const teacher = await Teacher.findOne({ where: { email } });
+  
       if (!teacher) {
         return res.status(400).json({ error: "Invalid email" });
       }
   
-      
+      // Create the course
       const course = await Course.create({
         subject_name,
         department_id,
@@ -245,13 +250,14 @@ function formatDuration(seconds) {
         teacher_id: teacher.id,
         img,
         defaultvideo,
-        file_book,
+        file_book, // Add file book to the course
       });
   
       const titles = req.body["title"] || [];
       const videos = Array.isArray(req.files["url"]) ? req.files["url"] : [];
       const normalizedTitles = Array.isArray(titles) ? titles : (titles ? [titles] : []);
   
+      // Prepare video data
       const videoFileData = videos.map((file) => ({
         filename: file.filename,
         type: 'file',
@@ -264,109 +270,69 @@ function formatDuration(seconds) {
   
       const videoData = [...videoFileData, ...videoLinkData];
   
-      const processedVideoData = await Promise.all(videoData.map(async (video) => {
-        if (video.type === 'file') {
-          const videoPath = `./images/${video.filename}`; 
-          const duration = await getVideoDurationInSeconds(videoPath);
-          return { ...video, duration, link: null };
-        } else {
-          return { ...video, duration: null, link: video.filename };
-        }
-      }));
+      // Process video data to calculate durations
+      const processedVideoData = await Promise.all(
+        videoData.map(async (video) => {
+          if (video.type === 'file') {
+          const videoPath = `https://res.cloudinary.com/durjqlivi/video/upload/${video.filename}`;
+            const duration = await getVideoDurationInSeconds(videoPath);
+            return {
+              ...video,
+              duration,
+              link: null, // No link for file videos
+            };
+          } else {
+            return {
+              ...video,
+              duration: null,
+              link: video.filename, // Link stored in filename
+            };
+          }
+        })
+      );
   
-      const totalDurationInSeconds = calculateTotalDuration(processedVideoData
-        .filter(v => v.type === 'file')
-        .map(v => v.duration));
+      // Calculate total duration for file videos
+      const totalDurationInSeconds = calculateTotalDuration(
+        processedVideoData.filter((v) => v.type === 'file').map((v) => v.duration)
+      );
       const formattedTotalDuration = formatDuration(totalDurationInSeconds);
   
-      const videoValues = processedVideoData.map((video, index) => [
-        course.id,
-        normalizedTitles[index] || "Untitled", 
-        video.type === 'file' ? video.filename : '',
-        video.type === 'link' ? video.link : '',
-        video.type,
-        formatDuration(video.duration || 0),
-      ]);
+      // Insert videos
+      const videoPromises = processedVideoData.map((video, index) =>
+        Video.create({
+          course_id: course.id,
+          title: normalizedTitles[index] || "Untitled", // Provide default title if missing
+          url: video.type === 'file' ? video.filename : '', // URL for files
+          link: video.type === 'link' ? video.link : '', // Link for links
+          type: video.type,
+          duration: formatDuration(video.duration || 0),
+        })
+      );
   
-      await Video.bulkCreate(videoValues); 
+      await Promise.all(videoPromises);
   
-      
+      // Update course total video duration
       await course.update({ total_video_duration: formattedTotalDuration });
   
-      await client.del('courses'); 
-  
-      return res.status(200).json({
+      res.send({
         message: "Course and videos added successfully",
         totalDuration: formattedTotalDuration,
       });
-  
-    } catch (err) {
-      console.error("Error adding course and videos:", err.message);
-  
-      return res.status(500).json({
-        error: "Error adding course",
-        message: err.message,
+    } catch (error) {
+      console.error("Error adding course:", error);
+      res.status(500).send({
+        error: "Failed to add course",
+        message: error.message,
       });
     }
-  });
+  };
   
-
-
-
-// exports.getTeacherCourseById = asyncHandler(async (req, res, next) => {
-//     const { id } = req.params;
   
-    
-//     const cachedData = await client.get(`teacher_courses_${id}`);
-//     if (cachedData) {
-//       return res.status(200).json(JSON.parse(cachedData));
-//     }
-  
-//     try {
-     
-//       const teacherCourses = await Course.findAll({
-//         where: {
-//           teacher_id: id,
-//         },
-//         include: [
-//           {
-//             model: Department,
-//             attributes: ['title'], 
-//           },
-//           {
-//             model: Teacher,
-//             attributes: ['teacher_name'],
-//           },
-//         ],
-//       });
-  
-    
-//       if (!teacherCourses || teacherCourses.length === 0) {
-//         return res.status(404).json({
-//           message: "No courses found for this teacher"
-//         });
-//       }
-  
-     
-//       await client.setex(`teacher_courses_${id}`, 3600, JSON.stringify(teacherCourses));
-  
-     
-//       return res.status(200).json(teacherCourses);
-//     } catch (err) {
-//       console.error('Error fetching course data: ' + err.message);
-      
-//       return res.status(500).json({
-//         error: "Error fetching course data",
-//         message: err.message,
-//       });
-//     }
-// });
-
 exports.getTeacherCoursesByEmail = asyncHandler(async (req, res, next) => {
   const { teacherEmail } = req.params;
 
   // Clear cache for teacher courses
-  await client.del("teacher_courses:all");
+  await client.del(`teacher_courses_${teacherEmail}`);
 
   // Check for cached data
   const cachedData = await client.get(`teacher_courses_${teacherEmail}`);
@@ -590,186 +556,171 @@ exports.getStudentCountForTeacher = asyncHandler(async (req, res, next) => {
   });
 
 
-
 exports.updateTeacherCourse = asyncHandler(async (req, res) => {
-    const {
-      subject_name,
-      department_id,
-      before_offer,
-      after_offer,
-      coupon,
-      descr,
-      std_num,
-      rating,
-      email,
-      title: titles = []
-    } = req.body;
-  
-    const img = req.files["img"] ? req.files["img"][0].filename : null;
-    const defaultvideo = req.files["defaultvideo"] ? req.files["defaultvideo"][0].filename : null;
-    const file_book = req.files["file_book"] ? req.files["file_book"][0].filename : null;
-    const links = req.body["link"] || [];
-    const normalizedLinks = Array.isArray(links) ? links : (links ? [links] : []);
-    const videos = Array.isArray(req.files["url"]) ? req.files["url"] : [];
-  
-    
-    const { courseId } = req.params;
-  
-    if (!courseId) {
-      return res.status(400).send({ error: "Course ID is required" });
+  const {
+    subject_name,
+    department_id,
+    before_offer,
+    after_offer,
+    coupon,
+    descr,
+    std_num,
+    rating,
+    email,
+    title: titles = [] // Default to empty array if no titles are provided
+  } = req.body;
+
+  const img = req.files["img"] ? req.files["img"][0].filename : null;
+  const defaultvideo = req.files["defaultvideo"] ? req.files["defaultvideo"][0].filename : null;
+  const file_book = req.files["file_book"] ? req.files["file_book"][0].filename : null; // Added file_book
+  const links = req.body["link"] || [];
+  const normalizedLinks = Array.isArray(links) ? links : (links ? [links] : []);
+  const videos = Array.isArray(req.files["url"]) ? req.files["url"] : [];
+
+  // Get the course ID from URL parameters
+  const { courseId } = req.params;
+
+  if (!courseId) {
+    return res.status(400).send({ error: "Course ID is required" });
+  }
+
+  // Fetch current course data using Sequelize
+  const existingCourse = await Course.findOne({ where: { id: courseId } });
+
+  if (!existingCourse) {
+    return res.status(404).json({ error: "Course not found" });
+  }
+
+  // Construct the updated data, using existing values if not provided
+  const updatedData = {
+    subject_name: subject_name || existingCourse.subject_name,
+    department_id: department_id || existingCourse.department_id,
+    before_offer: before_offer || existingCourse.before_offer,
+    after_offer: after_offer || existingCourse.after_offer,
+    coupon: coupon || existingCourse.coupon,
+    descr: descr || existingCourse.descr,
+    std_num: std_num || existingCourse.std_num,
+    rating: rating || existingCourse.rating,
+    img: img || existingCourse.img,
+    defaultvideo: defaultvideo || existingCourse.defaultvideo,
+    file_book: file_book || existingCourse.file_book
+  };
+
+  // Check if the teacher exists using Sequelize
+  const teacher = await Teacher.findOne({ where: { email } });
+
+  if (!teacher) {
+    return res.status(400).json({ error: "Invalid email" });
+  }
+
+  updatedData.teacher_id = teacher.id;
+
+  // Update the course using Sequelize
+  await existingCourse.update(updatedData);
+
+  // Process video files and links if provided
+  const videoFiles = req.files?.videoFiles || [];
+  const videoLinks = [];
+
+  for (let key in req.body) {
+    if (key.startsWith('videoLinks[')) {
+      const index = key.match(/\d+/)[0];
+      const prop = key.match(/\.(\w+)$/)[1];
+      videoLinks[index] = videoLinks[index] || {};
+      videoLinks[index][prop] = req.body[key];
     }
-  
-    
-    const cachedCourse = await client.get(`course_data_${courseId}`);
-    if (cachedCourse) {
-      return res.status(200).json(JSON.parse(cachedCourse));
-    }
-  
-    
-    const course = await Course.findOne({
-      where: { id: courseId },
-      include: [{
-        model: Teacher,
-        where: { email },
-        attributes: ['id']
-      }]
-    });
-  
-    if (!course) {
-      return res.status(404).json({ error: "Course not found" });
-    }
-  
-    const updatedData = {
-      subject_name: subject_name || course.subject_name,
-      department_id: department_id || course.department_id,
-      before_offer: before_offer || course.before_offer,
-      after_offer: after_offer || course.after_offer,
-      coupon: coupon || course.coupon,
-      descr: descr || course.descr,
-      std_num: std_num || course.std_num,
-      rating: rating || course.rating,
-      img: img || course.img,
-      defaultvideo: defaultvideo || course.defaultvideo,
-      file_book: file_book || course.file_book
+  }
+
+  const videoFileData = videoFiles.map((file, index) => {
+    const originalNameWithoutExtension = file.originalname.split('.').slice(0, -1).join('.');
+    return {
+      id: req.body[`id[${index}]`],
+      title: req.body[`title[${index}]`] || originalNameWithoutExtension,
+      url: file.filename || '',
+      type: 'file',
     };
-  
-   
-    if (course.teacher.email !== email) {
-      const teacher = await Teacher.findOne({ where: { email } });
-      if (!teacher) {
-        return res.status(400).json({ error: "Invalid email" });
-      }
-      updatedData.teacher_id = teacher.id;
-    }
-  
-    
-    await course.update(updatedData);
-  
-    
-    const videoFiles = req.files?.videoFiles || [];
-    const videoLinks = [];
-  
-    for (let key in req.body) {
-      if (key.startsWith('videoLinks[')) {
-        const index = key.match(/\d+/)[0];
-        const prop = key.match(/\.(\w+)$/)[1];
-        videoLinks[index] = videoLinks[index] || {};
-        videoLinks[index][prop] = req.body[key];
-      }
-    }
-  
-    const videoFileData = videoFiles.map((file, index) => {
-      const originalNameWithoutExtension = file.originalname.split('.').slice(0, -1).join('.');
-      return {
-        id: req.body[`id[${index}]`],
-        title: req.body[`title[${index}]`] || originalNameWithoutExtension,
-        url: file.filename || '',
-        type: 'file',
-      };
-    });
-  
-    const videoLinkData = videoLinks.map((link) => ({
-      id: link.id,
-      title: link.title || "Untitled",
-      filename: '',
-      type: 'link',
-      link: link.link,
-    }));
-  
-    const videoData = [...videoFileData, ...videoLinkData];
-  
-   
-    const existingVideoRows = await Video.findAll({
-      where: { course_id: courseId, type: 'file' },
-      attributes: ['duration']
-    });
-  
-    const existingVideoDurations = existingVideoRows.map(row => row.duration);
-  
-    
-    const processedVideoData = await Promise.all(
-      videoData.map(async (video) => {
-        if (video.type === 'file') {
-          const videoPath = `./images/${video.url}`;
-          try {
-            const duration = await getVideoDurationInSeconds(videoPath);
-            return {
-              ...video,
-              duration: formatDuration(duration),
-              link: null,
-            };
-          } catch (error) {
-            console.error('Error getting video duration:', error);
-            return {
-              ...video,
-              duration: "0h 0m 0s",
-              link: null,
-            };
-          }
-        } else {
+  });
+
+  const videoLinkData = videoLinks.map((link) => ({
+    id: link.id,
+    title: link.title || "Untitled",
+    filename: '',
+    type: 'link',
+    link: link.link,
+  }));
+
+  const videoData = [...videoFileData, ...videoLinkData];
+
+  // Retrieve existing video durations from the database using Sequelize
+  const existingVideos = await Video.findAll({
+    where: { course_id: courseId, type: 'file' },
+    attributes: ['duration'],
+  });
+
+  const existingVideoDurations = existingVideos.map(video => video.duration);
+
+  // Process new video data and calculate total duration
+  const processedVideoData = await Promise.all(
+    videoData.map(async (video) => {
+      if (video.type === 'file') {
+        const videoPath = `https://res.cloudinary.com/durjqlivi/video/upload/${video.url}`;
+        try {
+          const duration = await getVideoDurationInSeconds(videoPath);
+          return {
+            ...video,
+            duration: formatDuration(duration),
+            link: null,
+          };
+        } catch (error) {
+          console.error('Error getting video duration:', error);
           return {
             ...video,
             duration: "0h 0m 0s",
-            link: video.link,
+            link: null,
           };
         }
-      })
-    );
-  
-    
-    const videoValues = processedVideoData.map((video) => [
-      video.id || null,
-      video.title || "Untitled",
-      video.type === 'file' ? video.url : '',
-      video.type === 'link' ? video.link : '',
-      video.type,
-      video.duration,
-      courseId,
-    ]);
-  
-    await Video.bulkCreate(videoValues, { updateOnDuplicate: ["title", "url", "link", "type", "duration"] });
-  
-    
-    const totalDurationInSeconds = [
-      ...existingVideoDurations.map(d => parseDurationInSeconds(d)),
-      ...processedVideoData
-        .filter(v => v.type === 'file' && v.duration)
-        .map(video => parseDurationInSeconds(video.duration))
-    ].reduce((total, duration) => total + duration, 0);
-  
-    const formattedTotalDuration = formatDuration(totalDurationInSeconds);
-    await course.update({ total_video_duration: formattedTotalDuration });
-  
-   
-    await client.set(`course_data_${courseId}`, JSON.stringify(course));
-  
-    return res.send({
-      message: "Course updated successfully",
-      courseId,
-      totalDuration: formattedTotalDuration
-    });
-  });
+      } else {
+        return {
+          ...video,
+          duration: "0h 0m 0s",
+          link: video.link,
+        };
+      }
+    })
+  );
 
+  // Insert or update new videos in the database using Sequelize
+  for (let video of processedVideoData) {
+    await Video.upsert({
+      id: video.id || null,
+      title: video.title || "Untitled",
+      url: video.type === 'file' ? video.url : '',
+      link: video.type === 'link' ? video.link : '',
+      type: video.type,
+      duration: video.duration,
+      course_id: courseId,
+    });
+  }
+
+  // Calculate total video duration
+  const totalDurationInSeconds = [
+    ...existingVideoDurations.map(d => parseDurationInSeconds(d)),
+    ...processedVideoData
+      .filter(v => v.type === 'file' && v.duration)
+      .map(video => parseDurationInSeconds(video.duration))
+  ].reduce((total, duration) => total + duration, 0);
+
+  const formattedTotalDuration = formatDuration(totalDurationInSeconds);
+
+  // Update total video duration in the course record using Sequelize
+  await existingCourse.update({ total_video_duration: formattedTotalDuration });
+
+  res.send({
+    message: "Course updated successfully",
+    courseId,
+    totalDuration: formattedTotalDuration
+  });
+});
 
   function parseDurationInSeconds(durationStr) {
     const match = durationStr.match(/(\d+)h (\d+)m (\d+)s/);
@@ -786,104 +737,94 @@ exports.updateTeacherCourse = asyncHandler(async (req, res) => {
 
 
 
-
-exports.deleteTeacherCourse = asyncHandler(async (req, res) => {
+  exports.deleteTeacherCourse = asyncHandler(async (req, res) => {
     const { id } = req.params;
   
     if (!id) {
-      return res.status(400).json({ error: "Course ID is required" });
+      return res.status(400).json({ error: "ID is required" });
     }
-  
-    const transaction = await Sequelize.transaction();
   
     try {
-      
-      await Video.destroy({
-        where: { course_id: id },
-        transaction
-      });
   
-      
-      const course = await Course.findOne({
-        where: { id },
-        transaction
-      });
   
-      if (!course) {
-        return res.status(404).json({ error: "Course not found" });
+      await Video.destroy({ where: { course_id: id } });
+      await course_users.destroy({ where: { course_id: id } });
+      await CommentCourse.destroy({ where: { course_id: id } });
+      await Payment.destroy({ where: { course_id: id } });
+  
+     
+      const deletedCourse = await Course.destroy({ where: { id: id } });
+      
+  
+      if (deletedCourse === 0) {
+        return res.status(404).json({ error: "Course not found or already deleted" });
       }
   
-      await course.destroy({ transaction });
+      res.json({ message: "Course and all related data deleted successfully" });
   
-     
-      await transaction.commit();
-  
-      res.json({ message: "Course and associated videos deleted successfully" });
-    } catch (err) {
-     
-      await transaction.rollback();
-      console.error("Error deleting course and videos:", err);
-      res.status(500).json({ error: "Database error during deletion", message: err.message });
+    } catch (error) {
+      console.error("Error during deletion:", error);
+      res.status(500).json({ error: error.message });
     }
   });
-
-
-
 
 
 exports.getTeacheridandCourseById = asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { teacherEmail } = req.query;
-  
-    if (!teacherEmail) {
-      return res.status(400).json({ error: "Teacher email is required" });
-    }
-  
-    const cacheKey = `course:${id}:teacher:${teacherEmail}`;
-  
-    try {
-     
-      client.get(cacheKey, async (err, cachedData) => {
-        if (err) {
-          console.error('Error fetching data from Redis:', err);
-        }
-  
-        if (cachedData) {
-          
-          return res.json(JSON.parse(cachedData));
-        }
-        const course = await Course.findOne({
-          where: { id, '$teacher.email$': teacherEmail }, 
-          include: [
-            {
-              model: Department,
-              attributes: ['title'], 
-            },
-            {
-              model: Teacher,
-              attributes: ['teacher_name'], 
-            },
-          ],
-        });
-  
-        if (!course) {
-          return res.status(404).json({ message: "No course found for this teacher and ID" });
-        }
-  
+  const { id } = req.params;
+  const { teacherEmail } = req.query;
+
+  if (!teacherEmail || !id) {
+    return res.status(400).json({
+      error: "Both teacherEmail and course ID are required."
+    });
+  }
+  const cacheKey = `course:${id}:teacher:${teacherEmail}`;
+  try {
+    client.get(cacheKey, async (err, cachedData) => {
+              if (err) {
+                console.error('Error fetching data from Redis:', err);
+              }
         
-        const responseData = {
-          ...course.toJSON(),
-          department_name: course.Department.title,
-          teacher_name: course.Teacher.teacher_name,
-        };
-  
-       
-        client.setex(cacheKey, 3600, JSON.stringify(responseData));
-  
-        res.json(responseData);
-      });
-    } catch (err) {
-      console.error("Error fetching course:", err);
-      res.status(500).json({ error: "Database error", message: err.message });
+              if (cachedData) {
+                
+                return res.json(JSON.parse(cachedData));
+              }
+                       });
+
+    // Fetch course with associated teacher and department
+    const course = await Course.findOne({
+      where: { id },
+      include: [
+        {
+          model: Teacher,
+          attributes: ["teacher_name", "email"],
+          where: { email: teacherEmail }
+        },
+        {
+          model: Department,
+          attributes: ["title"]
+        }
+      ]
+    });
+
+    if (!course) {
+      return res
+        .status(404)
+        .json({ message: "No course found for this teacher and ID" });
     }
-  });
+
+    // Transform the response to match the original SQL output
+    const result = {
+      ...course.get(),
+      department_name: course.Department?.title || null,
+      teacher_name: course.Teacher?.teacher_name || null
+    };
+      client.setEx(cacheKey, 3600, JSON.stringify(result));
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error fetching course:", err);
+  res.status(500).json({ error: "Database error", message: err.message });
+}
+});
+

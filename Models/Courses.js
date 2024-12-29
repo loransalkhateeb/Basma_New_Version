@@ -118,9 +118,6 @@ course_users.belongsTo(courses, { foreignKey: 'course_id' });
 courses.hasMany(course_users, { foreignKey: 'course_id' });
 
 
-
-  
-
 module.exports = courses;
 
 

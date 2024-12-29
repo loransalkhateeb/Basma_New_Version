@@ -35,71 +35,70 @@ const sendEmailNotification = async (subject, content) => {
 
 
 
-exports.createBlog = async (req, res) => {
+exports.createBlog = asyncHandler(async (req, res) => {
+  const { title, author, descr, department_id, tags } = req.body;
+
+  // Check if file was uploaded correctly
+  if (!req.file) {
+    return res.status(400).send({
+      error: "Failed to add blog",
+      message: "Image file is required",
+    });
+  }
+
+  const img = req.file.filename; // Get the filename of the uploaded image
+  const action = "not approved";
+
+  if (!title) {
+    return res.status(400).send({
+      error: "Failed to add blog",
+      message: "Title cannot be null or empty",
+    });
+  }
+
   try {
-    const { title, author, descr, department_id, tags } = req.body || {};
-
-    
-    const processedTags = tags && Array.isArray(tags) ? tags : tags.split(',').map(tag => tag.trim()).filter(Boolean);
-
-    if (!title || !author || !descr || !department_id || !processedTags.length) {
-      return res.status(400).json({
-        error: "Validation failed",
-        message: "All fields are required. Please fill all fields."
-      });
-    }
-
-   
-    const validationErrors = validateInput({ title, author, descr, department_id, tags: processedTags });
-    if (validationErrors.length > 0) {
-      return res.status(400).json({
-        error: "Validation failed",
-        message: validationErrors
-      });
-    }
-
-   
-    const img = req.file ? req.file.filename : null;
+    // Insert the blog into the blog table
     const newBlog = await Blog.create({
       title,
       author,
       descr,
-      department_id,
       img,
+      action,
+      department_id,
     });
 
-    
-    const tagsToCreate = await Promise.all(processedTags.map(async (tag) => {
-      const [existingTag] = await Tag.findOrCreate({
-        where: { tag_name: tag },
-        defaults: { tag_name: tag }
-      });
-      return { blog_id: newBlog.id, tag_name: existingTag.tag_name, tag_id: existingTag.id };
-    }));
+    // Handle tags if provided
+    if (tags) {
+      let tagValues = [];
 
-    
-    await Tag.bulkCreate(tagsToCreate);
+      // Ensure tags is always an array
+      if (Array.isArray(tags)) {
+        tagValues = tags.map(tag => ({
+          blog_id: newBlog.id,
+          tag_name: tag
+        }));
+      } else {
+        tagValues = [{ blog_id: newBlog.id, tag_name: tags }];
+      }
 
-   
+      // Insert tags into the tag table and associate them with the blog
+      await Tag.bulkCreate(tagValues);
+    }
     sendEmailNotification("New Blog Created", `A new blog titled "${title}" has been created`);
-
-   
-    res.status(201).json({
-      message: "Blog created successfully",
-      blog: newBlog,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({
-      error: "Failed to create Blog",
-      message: "An error occurred while creating the new Blog. Please try again."
+      res.send({
+        message: tags
+          ? "Blog added successfully with tags, admin notified"
+          : "Blog added successfully, but no tags provided. Admin notified",
+      });
+    
+  } catch (err) {
+    console.error("Error adding blog:", err);
+    res.status(500).send({
+      error: "Failed to add blog",
+      message: err.message,
     });
   }
-};
-
-
-
-
+});
 
 
 exports.getAllBlogs = asyncHandler(async (req, res) => {
@@ -206,15 +205,13 @@ exports.updateBlog = asyncHandler(async (req, res) => {
 
 
 
-exports.deleteBlog = async (req, res) => {
-  try {
-    const { id } = req.params;
 
 
 exports.deleteBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-
+  try {
+    const { id } = req.params;
     const [blog, _] = await Promise.all([
       Blog.findByPk(id),
       client.del(`blog:${id}`), 
@@ -247,7 +244,7 @@ exports.deleteBlog = asyncHandler(async (req, res) => {
       ])
     );
   }
-};
+});
 
 
 

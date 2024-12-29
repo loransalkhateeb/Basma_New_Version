@@ -27,9 +27,6 @@ exports.createLibrary = async (req, res) => {
     if (file_book && !file_book.endsWith('.pdf')) {
       file_book += '.pdf';
     }
-
-    console.log("Uploaded file details:", req.file);
-
     
     const newLibrary = await Library.create({
       book_name,
@@ -60,15 +57,11 @@ exports.createLibrary = async (req, res) => {
 exports.getByFile = async (req, res) => {
   const fileName = req.params.filename;
 
-  console.log("Received filename:", fileName);
-
   try {
       const cloudinaryResources = await cloudinary.api.resources({
           type: "upload",
           prefix: "",
       });
-
-      console.log("Cloudinary resources:", cloudinaryResources);
 
       const { book_name, author, page_num, department_id } = req.body;
 
@@ -83,8 +76,6 @@ exports.getByFile = async (req, res) => {
       }
 
       const file_book = req.file.filename;
-      console.log("Uploaded file details:", req.file);
-
       
       const newLibrary = await Library.create({
           book_name,
@@ -128,9 +119,6 @@ exports.getByFile = async (req, res) => {
 
     // Option 1: Send file URL to the client
     res.status(200).json({ url: fileUrl });
-
-    // Option 2: Redirect client to download the file immediately
-    // res.redirect(fileUrl);
   } catch (error) {
     console.error("Error fetching file from Cloudinary:", error);
     if (error.http_code === 404) {
@@ -138,23 +126,6 @@ exports.getByFile = async (req, res) => {
     }
     res.status(500).json({ message: "Internal server error" });
   }
-  // try {
-  //     const result = await cloudinary.api.resources({
-  //         type: 'upload',
-  //         prefix: '',
-  //     });
-
-  //     const file = result.resources.find(resource => resource.public_id === fileName);
-
-  //     if (!file) {
-  //         return res.status(404).json({ message: 'File not found' });
-  //     }
-
-  //     res.redirect(file.secure_url);
-  // } catch (error) {
-  //     console.error('Error fetching file from Cloudinary:', error);
-  //     res.status(500).json({ message: 'Failed to retrieve file from Cloudinary' });
-  // }
 };
 
 
