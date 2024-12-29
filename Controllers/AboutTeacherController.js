@@ -48,12 +48,13 @@ exports.getAboutTeacher = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    client.del(`aboutTeacher:page:${page}:limit:${limit}`);
 
     const cacheKey = `aboutTeacher:page:${page}:limit:${limit}`;
     const cachedDataPromise = client.get(cacheKey);
 
     const aboutTeachersPromise = AboutTeacher.findAll({
-      attributes: ["id", "title", "descr", "img"],
+      attributes: ["id", "title", "descr", "img","para"],
       order: [["id", "DESC"]],
       limit: parseInt(limit),
       offset: parseInt(offset),

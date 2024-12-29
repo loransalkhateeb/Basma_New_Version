@@ -10,7 +10,7 @@ const {Sequelize} = require('../Config/dbConnect.js');
 const course_users = require('../Models/course_users.js');
 const CommentCourse = require('../Models/CommentCourseModel.js');
 const Payment = require('../Models/PaymentsModel.js');
-
+const TeacherStudent=require('../Models/Teacher_StudentModel.js')
 exports.addTeacherAndCourses = asyncHandler(async (req, res, next) => {
     const { teacher_name, descr, email, department_id } = req.body;
 
@@ -137,7 +137,8 @@ exports.getTeacherById = asyncHandler(async (req, res, next) => {
 
 exports.getTeacher = asyncHandler(async (req, res, next) => {
     try {
-      
+      client.del(`teachers`);
+
       const cachedTeachers = await client.get('teachers');
       if (cachedTeachers) {
         return res.json(JSON.parse(cachedTeachers));  
@@ -464,62 +465,57 @@ exports.updateTeacher = asyncHandler(async (req, res, next) => {
 
 
 
-
-
-
 exports.deleteTeacher = asyncHandler(async (req, res, next) => {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    try {
-        await Course.destroy({
-            where: { teacher_id: id }
-        });
+  try {
+     
+      const courses = await Course.findAll({ where: { teacher_id: id } });
+      
+      for (let course of courses) {
+          await Video.destroy({
+              where: { course_id: course.id }
+          });
 
-        
-        await TeacherStudent.destroy({
-            where: { teacher_id: id }
-        });
+          
+          await course.destroy();
+          await client.del(`course_${course.id}`);
+      }
 
-        
-        const teacher = await Teacher.findOne({ where: { id } });
-        if (!teacher) {
-            return res.status(404).json({
-                error: "Teacher not found",
-                message: `Teacher with ID ${id} does not exist.`
-            });
-        }
+     
+      await TeacherStudent.destroy({
+          where: { teacher_id: id }
+      });
 
-        
-        await teacher.destroy();
+      
+      const teacher = await Teacher.findOne({ where: { id } });
+      if (teacher) {
+          await teacher.destroy();
+          await client.del(`teacher_${id}`);
+      }
 
-       
-        await client.del(`teacher_${id}`);
+      return res.status(200).json({
+          message: "Teacher and associated courses and videos deleted successfully",
+          teacherId: id
+      });
+  } catch (err) {
+      console.error('Error deleting teacher and associated data: ', err.message);
 
-        
-        return res.status(200).json({
-            message: "Teacher deleted successfully",
-            teacherId: id
-        });
-    } catch (err) {
-        console.error('Error deleting teacher: ', err.message);
-
-        
-        return res.status(500).json({
-            error: "Internal Server Error",
-            message: "An error occurred while deleting the teacher.",
-            details: err.message
-        });
-    }
+      return res.status(500).json({
+          error: "Internal Server Error",
+          message: "An error occurred while deleting the teacher and associated data.",
+          details: err.message
+      });
+  }
 });
+
 
 
 
 
 exports.getStudentCountForTeacher = asyncHandler(async (req, res, next) => {
     const { id } = req.params;
-  
     try {
-      
       const cachedCount = await client.get(`teacher_student_count_${id}`);
       if (cachedCount) {
         return res.status(200).json(JSON.parse(cachedCount));

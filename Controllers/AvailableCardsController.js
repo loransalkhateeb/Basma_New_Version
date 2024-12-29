@@ -35,6 +35,7 @@ exports.createAvailableCard = async (req, res) => {
 
 exports.getAllAvailableCards = async (req, res) => {
   try {
+    client.del(`availableCards:all`);
     const cachedData = await client.get("availableCards:all");
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
@@ -50,10 +51,9 @@ exports.getAllAvailableCards = async (req, res) => {
 
     await client.setEx("availableCards:all", 3600, JSON.stringify(availableCards));
 
-    res.status(200).json({
-      message: "Available Cards retrieved successfully",
+    res.status(200).json(
       availableCards
-    });
+    );
   } catch (error) {
     console.error(error);
     res.status(500).json(new ErrorResponse("Failed to retrieve Available Cards", ["An error occurred while retrieving the Available Cards. Please try again"]));
