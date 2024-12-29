@@ -32,6 +32,8 @@ exports.createBasmaTraining = async (req, res) => {
 
 exports.getAllBasmaTraining = async (req, res) => {
   try {
+    client.del('basmaTrainings:all');
+
     const cachedData = await client.get('basmaTrainings:all');
     if (cachedData) {
       return res.status(200).json(JSON.parse(cachedData));
@@ -45,10 +47,9 @@ exports.getAllBasmaTraining = async (req, res) => {
 
     await client.setEx('basmaTrainings:all', 3600, JSON.stringify(basmaTrainings));
 
-    res.status(200).json({
-      message: "BasmaTraining records retrieved successfully",
+    res.status(200).json(
       basmaTrainings
-    });
+    );
   } catch (error) {
     console.error(error);
     res.status(500).json(ErrorResponse("Failed to retrieve BasmaTraining records", ["An error occurred while retrieving the records. Please try again later."]));

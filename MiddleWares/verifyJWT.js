@@ -162,10 +162,6 @@ const blockedIps = new Set();
 const failedAttempts = {};
 exports.login = async (req, res) => {
   const { email, password, mfaCode, ip } = req.body;
-
-  if (!email.endsWith("@kasselsoft.com")) {
-        return res.status(400).send("Email is not authorized for login process" );
-       }
   const clientIp =
     ip ||
     req.ip ||
@@ -250,6 +246,9 @@ exports.login = async (req, res) => {
 
    
     if (user.role === "admin" || user.role === "teacher") {
+      if (!email.endsWith("@kasselsoft.com")) {
+        return res.status(400).send("Email is not authorized for login process" );
+       }
       if (!mfaCode) {
         mfaCodeMemory = Math.floor(100000 + Math.random() * 900000);
         mfaCodeExpiration = Date.now() + 5 * 60 * 1000;

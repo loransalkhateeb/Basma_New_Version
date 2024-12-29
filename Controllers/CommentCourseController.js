@@ -30,7 +30,7 @@ exports.addCommentCourse = async (req, res) => {
 
     
     const course = await Course.findByPk(course_id, {
-      attributes: ["title"], 
+      attributes: ["subject_name"], 
         });
     if (!course) {
       return res.status(404).json(ErrorResponse("Course not found", [`No course with ID: ${course_id}`]));
@@ -49,16 +49,15 @@ exports.addCommentCourse = async (req, res) => {
     
     const mailOptions = {
       from: process.env.EMAIL_USER,
-      to: process.env.ADMIN_EMAIL, 
+      to: process.env.NOTIFY_EMAIL, 
       subject: "تعليق جديد يتطلب الموافقة",
       html: `
         <p>تم تقديم تعليق جديد ويتطلب موافقتك</p>
         <p><strong>الاسم:</strong> ${name}</p>
         <p><strong>البريد الإلكتروني:</strong> ${email}</p>
         <p><strong>التعليق:</strong> ${comment}</p>
-        <p><strong>اسم الكورس:</strong> ${course.title}</p>
+        <p><strong>اسم الكورس:</strong> ${course.subject_name}</p>
         <p>يرجى تسجيل الدخول إلى لوحة التحكم للموافقة على هذا التعليق أو رفضه:</p>
-        <p><a href="${process.env.DASHBOARD_URL}">${process.env.DASHBOARD_URL}</a></p>
       `,
     };
 

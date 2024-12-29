@@ -34,8 +34,10 @@ exports.addBoxSlider = async (req, res) => {
 
 exports.getBoxSliders = async (req, res) => {
   try {
+    
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    client.del(`BoxSlider:page:${page}:limit:${limit}`);
 
     const cacheKey = `BoxSlider:page:${page}:limit:${limit}`;
 

@@ -58,6 +58,7 @@ exports.getAbout = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const offset = (page - 1) * limit;
+    client.del(`about:page:${page}:limit:${limit}`);
 
     const cacheKey = `about:page:${page}:limit:${limit}`;
     const cachedData = await client.get(cacheKey);
