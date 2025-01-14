@@ -76,20 +76,27 @@ exports.getTagById = async (req, res) => {
 
 exports.getUniqueTags = async (req, res) => {
   try {
-    client.del(`tag:unique`);
+    
+    await client.del("tag:unique");
 
+    
     const data = await client.get("tag:unique");
     if (data) {
       return res.status(200).json(JSON.parse(data));
     } else {
+      
       const tags = await Tag.findAll({
         attributes: ["tag_name"],
-        distinct: true,
       });
 
-      await client.setEx("tag:unique", 3600, JSON.stringify(tags));
+      
+      const uniqueTags = Array.from(new Set(tags.map(tag => tag.tag_name)));
 
-      res.status(200).json(tags);
+      
+      await client.setEx("tag:unique", 3600, JSON.stringify(uniqueTags));
+
+    
+      res.status(200).json(uniqueTags);
     }
   } catch (error) {
     console.error(error);
@@ -102,6 +109,7 @@ exports.getUniqueTags = async (req, res) => {
       );
   }
 };
+
 
 exports.getBlogsByTag = async (req, res) => {
   try {
