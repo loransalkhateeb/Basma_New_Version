@@ -24,7 +24,7 @@ exports.getProfile = asyncHandler(async (req, res) => {
    
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).send(new ErrorResponse('User not found', 404));
+      return res.status(404).send( ErrorResponse('User not found', 404));
     }
 
     
@@ -33,7 +33,7 @@ exports.getProfile = asyncHandler(async (req, res) => {
     
     res.json(user);
   } catch (err) {
-    return res.status(500).send(new ErrorResponse(err.message, 500)); 
+    return res.status(500).send( ErrorResponse(err.message, 500)); 
   }
 });
 
@@ -67,7 +67,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
     
     const user = await User.findByPk(userId);
     if (!user) {
-      return res.status(404).send(new ErrorResponse('User not found', 404));
+      return res.status(404).send( ErrorResponse('User not found', 404));
     }
 
     
@@ -118,7 +118,7 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
     });
 
     if (!users || users.length === 0) {
-      return res.status(404).send(new ErrorResponse('No users found', 404));
+      return res.status(404).send( ErrorResponse('No users found', 404));
     }
 
     
@@ -127,6 +127,6 @@ exports.getAllUsers = asyncHandler(async (req, res) => {
     
     res.json(users);
   } catch (err) {
-    return res.status(500).send(new ErrorResponse(err.message, 500)); 
+    return res.status(500).send( ErrorResponse(err.message, 500)); 
   }
 });
