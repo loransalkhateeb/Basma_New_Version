@@ -267,6 +267,8 @@ exports.getByDepartment = asyncHandler(async (req, res) => {
       .json({ message: "An error occurred while fetching libraries" });
   }
 });
+
+
 exports.updateLibrary = async (req, res) => {
   const { id } = req.params;
   const { book_name, author, page_num, department_id } = req.body;
@@ -286,12 +288,15 @@ exports.updateLibrary = async (req, res) => {
     if (page_num && page_num !== existingBook.page_num) updatedFields.page_num = page_num;
     if (department_id && department_id !== existingBook.department_id) updatedFields.department_id = department_id;
 
-    
+  
     if (file_book && !file_book.endsWith('.pdf')) {
       file_book += '.pdf';
     }
+
+   
     if (file_book && file_book !== existingBook.file_book) updatedFields.file_book = file_book;
 
+  
     if (Object.keys(updatedFields).length > 0) {
       await existingBook.update(updatedFields);
     }
@@ -309,6 +314,8 @@ exports.updateLibrary = async (req, res) => {
     });
   }
 };
+
+
 
 
 

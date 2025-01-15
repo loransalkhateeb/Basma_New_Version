@@ -76,39 +76,40 @@ exports.getTagById = async (req, res) => {
 
 exports.getUniqueTags = async (req, res) => {
   try {
-    
     await client.del("tag:unique");
 
     
     const data = await client.get("tag:unique");
     if (data) {
+     
       return res.status(200).json(JSON.parse(data));
     } else {
-      
+     
       const tags = await Tag.findAll({
         attributes: ["tag_name"],
       });
 
-      
-      const uniqueTags = Array.from(new Set(tags.map(tag => tag.tag_name)));
-
+     
+      const uniqueTags = Array.from(new Set(tags.map(tag => tag.tag_name)))
+        .map(tag_name => ({ tag_name })); 
+        
       
       await client.setEx("tag:unique", 3600, JSON.stringify(uniqueTags));
 
-    
+      
       res.status(200).json(uniqueTags);
     }
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json(
-         ErrorResponse("Failed to fetch unique tags", [
-          "An error occurred while fetching the unique tags",
-        ])
-      );
+    
+    res.status(500).json(
+      ErrorResponse("Failed to fetch unique tags", [
+        "An error occurred while fetching the unique tags",
+      ])
+    );
   }
 };
+
 
 
 exports.getBlogsByTag = async (req, res) => {
