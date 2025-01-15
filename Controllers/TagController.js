@@ -103,7 +103,7 @@ exports.getUniqueTags = async (req, res) => {
     res
       .status(500)
       .json(
-        new ErrorResponse("Failed to fetch unique tags", [
+         ErrorResponse("Failed to fetch unique tags", [
           "An error occurred while fetching the unique tags",
         ])
       );
