@@ -176,11 +176,13 @@ exports.getLibraryById = async (req, res) => {
   try {
     const { id } = req.params;
 
+   
     const data = await client.get(`library:${id}`);
 
     if (data) {
       return res.status(200).json(JSON.parse(data));
     } else {
+      
       const libraryEntry = await Library.findOne({
         attributes: [
           "id",
@@ -203,6 +205,7 @@ exports.getLibraryById = async (req, res) => {
           );
       }
 
+      
       await client.set(`library:${id}`, JSON.stringify(libraryEntry), {
         EX: 3600,
       });
@@ -220,6 +223,9 @@ exports.getLibraryById = async (req, res) => {
       );
   }
 };
+
+
+
 exports.getByDepartment = asyncHandler(async (req, res) => {
   try {
     const departmentId = req.params.id; 
@@ -269,6 +275,7 @@ exports.getByDepartment = asyncHandler(async (req, res) => {
 });
 
 
+
 exports.updateLibrary = async (req, res) => {
   const { id } = req.params;
   const { book_name, author, page_num, department_id } = req.body;
@@ -278,42 +285,53 @@ exports.updateLibrary = async (req, res) => {
     const existingBook = await Library.findByPk(id);
 
     if (!existingBook) {
-      return res.status(404).json({ error: 'Book not found' });
+      return res.status(404).json({ error: "Book not found" });
     }
 
     const updatedFields = {};
 
-    if (book_name && book_name !== existingBook.book_name) updatedFields.book_name = book_name;
-    if (author && author !== existingBook.author) updatedFields.author = author;
-    if (page_num && page_num !== existingBook.page_num) updatedFields.page_num = page_num;
-    if (department_id && department_id !== existingBook.department_id) updatedFields.department_id = department_id;
-
   
-    if (file_book && !file_book.endsWith('.pdf')) {
-      file_book += '.pdf';
-    }
+    if (book_name && book_name !== existingBook.book_name)
+      updatedFields.book_name = book_name;
+    if (author && author !== existingBook.author)
+      updatedFields.author = author;
+    if (page_num && page_num !== existingBook.page_num)
+      updatedFields.page_num = page_num;
+    if (department_id && department_id !== existingBook.department_id)
+      updatedFields.department_id = department_id;
 
    
-    if (file_book && file_book !== existingBook.file_book) updatedFields.file_book = file_book;
+    if (file_book && !file_book.endsWith(".pdf")) {
+      file_book += ".pdf";
+    }
 
-  
+    if (file_book && file_book !== existingBook.file_book)
+      updatedFields.file_book = file_book;
+
+   
     if (Object.keys(updatedFields).length > 0) {
       await existingBook.update(updatedFields);
     }
 
-    return res.status(200).json({
-      message: 'Book updated successfully',
-      library: { ...existingBook.toJSON(), ...updatedFields },
+    
+    const updatedLibraryData = { ...existingBook.toJSON(), ...updatedFields };
+    await client.set(`library:${id}`, JSON.stringify(updatedLibraryData), {
+      EX: 3600, 
     });
 
+    return res.status(200).json({
+      message: "Book updated successfully",
+      library: updatedLibraryData,
+    });
   } catch (error) {
-    console.error('Error updating book:', error.message);
+    console.error("Error updating book:", error.message);
     return res.status(500).json({
-      error: 'An error occurred while updating the book',
+      error: "An error occurred while updating the book",
       details: error.message,
     });
   }
 };
+
 
 
 
