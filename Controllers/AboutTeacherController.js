@@ -8,14 +8,14 @@ exports.createAboutTeacher = async (req, res) => {
 
   try {
     if (!title || !descr || !para) {
-      return res.status(400).json(new ErrorResponse("Validation failed", ["Title, description, and para are required"]));
+      return res.status(400).json(ErrorResponse("Validation failed", ["Title, description, and para are required"]));
     }
 
     const img = req.file ? req.file.filename : null;
 
     const validationErrors = validateInput({ title, descr, para });
     if (validationErrors.length > 0) {
-      return res.status(400).json(new ErrorResponse("Validation failed", validationErrors));
+      return res.status(400).json( ErrorResponse("Validation failed", validationErrors));
     }
 
     
@@ -104,7 +104,6 @@ exports.getAboutTeacherById = async (req, res) => {
     await client.setEx(cacheKey, 3600, JSON.stringify(aboutTeacher));
 
     res.status(200).json({
-      message: "AboutTeacher retrieved successfully",
       aboutTeacher: [aboutTeacher], 
     });
   } catch (error) {
@@ -119,13 +118,13 @@ exports.updateAboutTeacher = async (req, res) => {
 
   try {
     if (!title || !descr || !para) {
-      return res.status(400).json(new ErrorResponse("Validation failed", ["Title, description, and para are required"]));
+      return res.status(400).json( ErrorResponse("Validation failed", ["Title, description, and para are required"]));
     }
 
     const img = req.file ? req.file.filename : null;
     const validationErrors = validateInput({ title, descr, para });
     if (validationErrors.length > 0) {
-      return res.status(400).json(new ErrorResponse("Validation failed", validationErrors));
+      return res.status(400).json(ErrorResponse("Validation failed", validationErrors));
     }
 
   
